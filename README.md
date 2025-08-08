@@ -1,9 +1,9 @@
+[中文](https://github.com/QwenLM/Qwen-Agent/blob/main/README_CN.md) ｜ English
+
 <h1 align="center">🎨 Pixelle MCP - Omnimodal Agent Framework</h1>
 
-<p align="center"><b>English</b> | <a href="README_CN.md">中文</a></p>
-
 <p align="center">
-          💜 <a href="https://pixelle.ai/"><b>Playground</b></a>&nbsp&nbsp | &nbsp&nbsp 💬 <a href="https://github.com/AIDC-AI/Pixelle-MCP/blob/main/docs/wechat.png">WeChat (微信)</a>&nbsp&nbsp | &nbsp&nbsp 🤖 <a href="https://discord.gg/vxjYpccX">Discord</a>&nbsp&nbsp
+          💜 <a href="https://pixelle.ai/"><b>Playground</b></a>&nbsp&nbsp |  &nbsp&nbsp 𝕏 <a href="https://x.com/Pixelle_AI">X (Twitter)</a>&nbsp&nbsp | &nbsp&nbsp 💬 <a href="https://github.com/AIDC-AI/Pixelle-MCP/blob/main/docs/wechat.png">WeChat (微信)</a>&nbsp&nbsp | &nbsp&nbsp 🤖 <a href="https://discord.gg/h9UktBxq">Discord</a>&nbsp&nbsp
 </p>
 
 
