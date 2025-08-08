@@ -1,6 +1,10 @@
+中文 ｜ [English](./README.md)
+
 <h1 align="center">🎨 Pixelle MCP - 全模态融合智能体框架</h1>
 
-<p align="center"><a href="README.md">English</a> | <b>中文</b></p>
+<p align="center">
+          💜 <a href="https://pixelle.ai/"><b>在线体验</b></a>&nbsp&nbsp | &nbsp&nbsp 📖  <a href="https://e1xa5p6s6k.feishu.cn/wiki/Q7kXwoe7YifW01kmGkVcaMfonZ8?from=from_copylink">安装教程</a>&nbsp&nbsp  | &nbsp&nbsp 💬 <a href="https://github.com/AIDC-AI/Pixelle-MCP/blob/main/docs/wechat.png">微信</a>&nbsp&nbsp | &nbsp&nbsp 𝕏 <a href="https://x.com/Pixelle_AI">X (Twitter)</a>&nbsp&nbsp | &nbsp&nbsp 🤖 <a href="https://discord.gg/h9UktBxq">Discord</a>&nbsp&nbsp
+</p>
 
 <p align="center">✨ 基于 MCP 协议的 AIGC 方案，0代码将 ComfyUI 工作流无缝转化为 MCP Tool，让 LLM 与 ComfyUI 强强联合。</p>
 
