@@ -981,6 +981,28 @@ wheels = [
 ]
 
 [[package]]
+name = "litellm"
+version = "1.75.5.post1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "click" },
+    { name = "httpx" },
+    { name = "importlib-metadata" },
+    { name = "jinja2" },
+    { name = "jsonschema" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "tiktoken" },
+    { name = "tokenizers" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/10/97/6091a020895102a20f1da204ebe68c1293123555476b38e749f95ba5981c/litellm-1.75.5.post1.tar.gz", hash = "sha256:e40a0e4b25032755dc5df7f02742abe9e3b8836236363f605f3bdd363cb5a0d0", size = 10127846 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/76/780f68a3b26227136a5147c76860aacedcae9bf1b7afc1c991ec9cad11bc/litellm-1.75.5.post1-py3-none-any.whl", hash = "sha256:1c72809a9c8f6e132ad06eb7e628f674c775b0ce6bfb58cbd37e8b585d929cb7", size = 8895997 },
+]
+
+[[package]]
 name = "literalai"
 version = "0.1.201"
 source = { registry = "https://pypi.org/simple" }
@@ -1206,7 +1228,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "1.96.1"
+version = "1.99.9"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -1218,9 +1240,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2f/b5/18fd5e1b6b6c7dca52d60307b3637f9e9e3206a8041a9c8028985dbc6260/openai-1.96.1.tar.gz", hash = "sha256:6d505b5cc550e036bfa3fe99d6cff565b11491d12378d4c353f92ef72b0a408a", size = 489065 }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/d2/ef89c6f3f36b13b06e271d3cc984ddd2f62508a0972c1cbcc8485a6644ff/openai-1.99.9.tar.gz", hash = "sha256:f2082d155b1ad22e83247c3de3958eb4255b20ccf4a1de2e6681b6957b554e92", size = 506992 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4f/57/325bbdbdc27b47309be35cb4e0eb8980b0c1bc997194c797c3691d88ae41/openai-1.96.1-py3-none-any.whl", hash = "sha256:0afaab2019bae8e145e7a1baf6953167084f019dd15042c65edd117398c1eb1c", size = 757454 },
+    { url = "https://files.pythonhosted.org/packages/e8/fb/df274ca10698ee77b07bff952f302ea627cc12dac6b85289485dd77db6de/openai-1.99.9-py3-none-any.whl", hash = "sha256:9dbcdb425553bae1ac5d947147bebbd630d91bbfc7788394d4c4f3a35682ab3a", size = 786816 },
 ]
 
 [[package]]
@@ -1913,6 +1935,7 @@ dependencies = [
     { name = "boto3" },
     { name = "chainlit" },
     { name = "fastmcp" },
+    { name = "litellm" },
     { name = "openai" },
     { name = "pyyaml" },
     { name = "socksio" },
@@ -1924,6 +1947,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.38.34" },
     { name = "chainlit", specifier = ">=2.6.2" },
     { name = "fastmcp", specifier = ">=2.7.1" },
+    { name = "litellm", specifier = ">=1.75.5.post1" },
     { name = "openai", specifier = ">=1.84.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "socksio", specifier = ">=1.0.0" },

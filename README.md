@@ -9,22 +9,15 @@
 
 <p align="center">✨ An AIGC solution based on the MCP protocol, seamlessly converting ComfyUI workflows into MCP tools with zero code, empowering LLM and ComfyUI integration.</p>
 
+![](docs/readme-1.png)
 
 https://github.com/user-attachments/assets/65422cef-96f9-44fe-a82b-6a124674c417
 
-https://github.com/user-attachments/assets/75d80326-191a-4133-8b04-d69e91a3c6b3
 
-https://github.com/user-attachments/assets/e376dea5-4016-4fec-a017-73bb5ab22485
+## 📋 Recent Updates
 
-## 📁 Project Structure
+- ✅ **2025-08-12**: Integrated the LiteLLM framework, adding multi-model support for Gemini, DeepSeek, Claude, Qwen, and more
 
-- **mcp-base**: 🔧 Basic service, provides file storage and shared service capabilities
-- **mcp-client**: 🌐 MCP client, a web interface built on Chainlit
-- **mcp-server**: 🗄️ MCP server, provides various AIGC tools and services
-
-![](docs/%20mcp_structure.png)
-
-<p align="center">Project Structure</p>
 
 ## 🚀 Features
 
@@ -35,6 +28,16 @@ https://github.com/user-attachments/assets/e376dea5-4016-4fec-a017-73bb5ab22485
 - ✅ 🌐 **MCP Client**: Client is developed based on the [Chainlit](https://github.com/Chainlit/chainlit) framework, inheriting Chainlit's UI controls and supporting integration with more MCP Servers
 - ✅ 🔄 **Flexible Deployment**: Supports standalone deployment of Server-side only as MCP Server, or standalone deployment of Client-side only as MCP Client, or combined deployment
 - ✅ ⚙️ **Unified Configuration**: Uses YAML configuration scheme, one config file manages all services
+- ✅ 🤖 **Multi-LLM Support**: Supports multiple mainstream LLMs, including OpenAI, Ollama, Gemini, DeepSeek, Claude, Qwen, and more
+
+
+## 📁 Project Structure
+
+- **mcp-base**: 🔧 Basic service, provides file storage and shared service capabilities
+- **mcp-client**: 🌐 MCP client, a web interface built on Chainlit
+- **mcp-server**: 🗄️ MCP server, provides various AIGC tools and services
+
+![](docs/%20mcp_structure.png)
 
 
 ## 🏃‍♂️ Quick Start
@@ -190,11 +193,12 @@ The system supports ComfyUI workflows. Just design your workflow in the canvas a
 In the ComfyUI canvas, double-click the node title to edit, and use the following DSL syntax to define parameters:
 
 ```
-$<param_name>.<field_name>[!][:<description>]
+$<param_name>.[~]<field_name>[!][:<description>]
 ```
 
 #### 🔍 Syntax Explanation:
 - `param_name`: The parameter name for the generated MCP tool function
+- `~`: Optional, indicates URL parameter upload processing, returns relative path
 - `field_name`: The corresponding input field in the node
 - `!`: Indicates this parameter is required
 - `description`: Description of the parameter
@@ -205,6 +209,13 @@ $<param_name>.<field_name>[!][:<description>]
 
 - Set LoadImage node title to: `$image.image!:Input image URL`
 - Meaning: Creates a required parameter named `image`, mapped to the node's `image` field
+
+**URL upload processing example:**
+
+- Set any node title to: `$image.~image!:Input image URL`
+- Meaning: Creates a required parameter named `image`, system will automatically download URL and upload to ComfyUI, returns relative path
+
+> 📝 Note: `LoadImage`, `VHS_LoadAudioUpload`, `VHS_LoadVideo` and other nodes have built-in functionality, no need to add `~` marker
 
 **Optional parameter example:**
 
@@ -305,6 +316,7 @@ We welcome all forms of contribution! Whether you're a developer, designer, or u
 * 🔌 [MCP](https://modelcontextprotocol.io/introduction)
 * 🎬 [WanVideo](https://github.com/Wan-Video/Wan2.1)
 * ⚡ [Flux](https://github.com/black-forest-labs/flux)
+* 🤖 [LiteLLM](https://github.com/BerriAI/litellm)
 
 ## License
 This project is released under the MIT License ([LICENSE](LICENSE), SPDX-License-identifier: MIT).

@@ -7,21 +7,40 @@ import os
 import time
 import chainlit as cl
 from typing import Any, Dict, List
-from openai import AsyncOpenAI
 from mcp import ClientSession
 import re
-from httpx import Timeout
-from utils.llm_util import ModelInfo
+from utils.llm_util import ModelInfo, ModelType
+
+from litellm import acompletion
+import litellm
+
 from chat.starters import build_save_action
 from utils.time_util import format_duration
 from core.core import logger
 
-
 save_starter_enabled = os.getenv("CHAINLIT_SAVE_STARTER_ENABLED", "false").lower() == "true"
 
 
+def format_llm_error_message(model_name: str, error_str: str) -> str:
+    """Unified LLM error message formatting function"""
+    # Handle common error types and provide friendly English error messages
+    if "RateLimitError" in error_str or "429" in error_str:
+        if "quota" in error_str.lower() or "exceed" in error_str.lower():
+            return f"⚠️ {model_name} API quota exceeded. Please check your plan and billing details."
+        else:
+            return f"⚠️ {model_name} API rate limit hit. Please try again later."
+    elif "401" in error_str or "authentication" in error_str.lower():
+        return f"🔑 {model_name} API key is invalid. Please check your configuration."
+    elif "403" in error_str or "permission" in error_str.lower():
+        return f"🚫 {model_name} API access denied. Please check permissions."
+    elif "timeout" in error_str.lower():
+        return f"⏰ {model_name} API call timed out. Please retry."
+    else:
+        return f"❌ {model_name} model call failed: {error_str}"
+
+
 def get_all_tools() -> List[Dict[str, Any]]:
-    """获取所有可用的 MCP 工具"""
+    """Get all available MCP tools"""
     mcp_tools = cl.user_session.get("mcp_tools", {})
     all_tools = []
     for connection_tools in mcp_tools.values():
@@ -30,7 +49,7 @@ def get_all_tools() -> List[Dict[str, Any]]:
 
 
 def find_tool_connection(tool_name: str) -> str:
-    """查找工具所属的 MCP 连接"""
+    """Find the MCP connection that owns the tool"""
     mcp_tools = cl.user_session.get("mcp_tools", {})
     for connection_name, tools in mcp_tools.items():
         if any(tool["function"]["name"] == tool_name for tool in tools):
@@ -39,24 +58,24 @@ def find_tool_connection(tool_name: str) -> str:
 
 
 def _extract_content(content_list):
-    """从 CallToolResult 的 content 列表中提取文本内容"""
+    """Extract text content from CallToolResult's content list"""
     if not content_list:
         return ""
     
     text_parts = []
     for content_item in content_list:
-        # 处理不同类型的内容
+        # Handle different types of content
         if hasattr(content_item, 'text'):
             # TextContent
             text_parts.append(content_item.text)
         elif hasattr(content_item, 'data'):
-            # ImageContent 或其他二进制内容
+            # ImageContent or other binary content
             text_parts.append(f"[Binary content: {getattr(content_item, 'mimeType', 'unknown')}]")
         elif hasattr(content_item, 'uri'):
             # EmbeddedResource
             text_parts.append(f"[Resource: {content_item.uri}]")
         else:
-            # 其他未知类型，尝试转换为字符串
+            # Other unknown types, try to convert to string
             text_parts.append(str(content_item))
     
     return text_parts[0] if len(text_parts) == 1 else text_parts
@@ -64,12 +83,12 @@ def _extract_content(content_list):
 
 @cl.step(type="tool")
 async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
-    """执行 MCP 工具调用"""
-    # 记录开始时间
+    """Execute MCP tool call"""
+    # Record start time
     start_time = time.time()
     
     def _format_result_with_duration(content: str) -> str:
-        """统一格式化带耗时的结果"""
+        """Unified formatting of results with duration"""
         duration = time.time() - start_time
         return f"[Took {format_duration(duration)}] {content}"
     
@@ -79,13 +98,13 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
     await current_step.update()
     
     def record_step():
-        # 获取现有的消息历史
+        # Get existing message history
         current_steps = cl.user_session.get("current_steps", [])
         current_steps.append(current_step)
-        # 更新消息历史
+        # Update message history
         cl.user_session.set("current_steps", current_steps)
     
-    # 查找工具所属的连接
+    # Find the connection that owns the tool
     mcp_name = find_tool_connection(tool_name)
     if not mcp_name:
         error_msg = json.dumps({"error": f"Tool {tool_name} not found in any MCP connection"})
@@ -94,7 +113,7 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
         record_step()
         return result_with_duration
     
-    # 获取 MCP 会话
+    # Get MCP session
     mcp_session, _ = cl.context.session.mcp_sessions.get(mcp_name)
     if not mcp_session:
         error_msg = json.dumps({"error": f"MCP {mcp_name} not found in any MCP connection"})
@@ -104,11 +123,11 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
         return result_with_duration
     
     try:
-        # 调用 MCP 工具，返回 CallToolResult 对象
+        # Call MCP tool, returns CallToolResult object
         logger.info(f"Calling MCP tool: {tool_name} with input: {tool_input}")
         result = await mcp_session.call_tool(tool_name, tool_input, read_timeout_seconds=timedelta(hours=1))
         
-        # 检查是否有错误
+        # Check if there's an error
         if result.isError:
             error_content = _extract_content(result.content)
             logger.error(f"Tool execution failed: {error_content}")
@@ -117,7 +136,7 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
             current_step.output = result_with_duration
             return result_with_duration
         
-        # 提取内容文本
+        # Extract content text
         content = _extract_content(result.content)
         logger.info(f"Tool execution succeeded: {content}")
         result_with_duration = _format_result_with_duration(str(content))
@@ -135,50 +154,50 @@ async def execute_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
 
 
 def _extract_and_clean_media_markers(text: str) -> tuple[Dict[str, List[str]], str]:
-    """提取媒体标记并清理文本
+    """Extract media markers and clean text
     
     Returns:
-        tuple: (媒体文件字典, 清理后的文本)
-               媒体文件字典格式: {"images": [...], "audios": [...], "videos": [...]}
+        tuple: (media files dict, cleaned text)
+               media files dict format: {"images": [...], "audios": [...], "videos": [...]}
     """
-    # 匹配不同类型的媒体标记
+    # Match different types of media markers
     patterns = {
-        "images": r'\n\s*\[SHOW_IMAGE:([^\]]+)\]',
-        "audios": r'\n\s*\[SHOW_AUDIO:([^\]]+)\]',
-        "videos": r'\n\s*\[SHOW_VIDEO:([^\]]+)\]'
+        "images": r'\[SHOW_IMAGE:([^\]]+)\]',
+        "audios": r'\[SHOW_AUDIO:([^\]]+)\]',
+        "videos": r'\[SHOW_VIDEO:([^\]]+)\]'
     }
     
     media_files = {"images": [], "audios": [], "videos": []}
     cleaned_text = text
     
-    # 提取各类型媒体文件并清理文本
+    # Extract various types of media files and clean text
     for media_type, pattern in patterns.items():
         media_files[media_type] = re.findall(pattern, cleaned_text)
         cleaned_text = re.sub(pattern, '', cleaned_text)
     
-    # 移除多余的空白字符
+    # Remove extra whitespace
     cleaned_text = cleaned_text.rstrip()
     
     return media_files, cleaned_text
 
 
 def _is_url(source: str) -> bool:
-    """判断媒体源是否为URL"""
+    """Check if media source is a URL"""
     return source.startswith(('http://', 'https://'))
 
 
 async def _process_media_markers(msg: cl.Message):
-    """处理消息中的媒体标记"""
+    """Process media markers in messages"""
     if not msg.content:
         return
         
-    # 提取媒体标记并清理文本
+    # Extract media markers and clean text
     media_files, cleaned_content = _extract_and_clean_media_markers(msg.content)
     
-    # 更新消息内容（移除标记）
+    # Update message content (remove markers)
     msg.content = cleaned_content
     
-    # 处理图片
+    # Process images
     for i, img_source in enumerate(media_files["images"]):
         img_source = img_source.strip()
         
@@ -197,7 +216,7 @@ async def _process_media_markers(msg: cl.Message):
         msg.elements.append(img_element)
         logger.info(f"Added image element: {img_source}")
     
-    # 处理音频
+    # Process audio
     for i, audio_source in enumerate(media_files["audios"]):
         audio_source = audio_source.strip()
         
@@ -216,7 +235,7 @@ async def _process_media_markers(msg: cl.Message):
         msg.elements.append(audio_element)
         logger.info(f"Added audio element: {audio_source}")
     
-    # 处理视频
+    # Process video
     for i, video_source in enumerate(media_files["videos"]):
         video_source = video_source.strip()
         
@@ -241,11 +260,11 @@ async def _process_tool_call_delta(
     current_tool_calls: Dict[int, Dict], 
     current_args: Dict[int, str]
 ):
-    """处理工具调用的增量数据"""
+    """Process incremental data for tool calls"""
     for tool_call_delta in tool_calls_delta:
         index = tool_call_delta.index
         
-        # 初始化工具调用数据结构
+        # Initialize tool call data structure
         if index not in current_tool_calls:
             current_tool_calls[index] = {
                 "id": "",
@@ -254,7 +273,7 @@ async def _process_tool_call_delta(
             }
             current_args[index] = ""
         
-        # 累积工具调用信息
+        # Accumulate tool call information
         if tool_call_delta.id:
             current_tool_calls[index]["id"] = tool_call_delta.id
         if tool_call_delta.function and tool_call_delta.function.name:
@@ -268,8 +287,8 @@ async def _execute_tool_calls(
     current_tool_calls: Dict[int, Dict], 
     messages: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
-    """执行所有工具调用并更新消息历史"""
-    # 构建包含工具调用的助手消息
+    """Execute all tool calls and update message history"""
+    # Build assistant message with tool calls
     tool_calls_list = list(current_tool_calls.values())
     messages.append({
         "role": "assistant",
@@ -277,19 +296,19 @@ async def _execute_tool_calls(
         "tool_calls": tool_calls_list
     })
     
-    # 执行所有工具调用
+    # Execute all tool calls
     for tool_call in tool_calls_list:
         tool_name = tool_call["function"]["name"]
         tool_args_str = tool_call["function"]["arguments"]
         
         try:
-            # 解析工具参数
+            # Parse tool arguments
             tool_args = json.loads(tool_args_str)
             
-            # 执行工具调用
+            # Execute tool call
             tool_response = await execute_tool(tool_name, tool_args)
             
-            # 添加工具响应到消息历史
+            # Add tool response to message history
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call["id"],
@@ -297,9 +316,9 @@ async def _execute_tool_calls(
             })
             
         except Exception as e:
-            error_message = f"工具调用错误: {str(e)}"
+            error_message = f"Tool call error: {str(e)}"
             logger.error(error_message)
-            # 添加错误响应到消息历史
+            # Add error response to message history
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call["id"],
@@ -310,12 +329,12 @@ async def _execute_tool_calls(
 
 
 async def _handle_stream_chunk(chunk, msg, current_tool_calls, current_args):
-    """处理流式响应的单个chunk"""
+    """Process a single chunk of streaming response"""
     choice = chunk.choices[0]
     delta = choice.delta
     has_tool_call = False
     
-    # 处理工具调用
+    # Handle tool calls
     if delta.tool_calls:
         has_tool_call = True
         await _process_tool_call_delta(
@@ -324,16 +343,16 @@ async def _handle_stream_chunk(chunk, msg, current_tool_calls, current_args):
             current_args
         )
     
-    # 处理普通文本响应
+    # Handle regular text response
     elif delta.content:
         await msg.stream_token(delta.content)
     
     return has_tool_call, choice.finish_reason
 
 
-async def _handle_stream_response(client, api_params, enhanced_messages, messages):
-    """处理单次流式响应"""
-    # 为这一轮响应创建独立的消息对象
+async def _handle_response(model_info, api_params, enhanced_messages, messages):
+    """Handle streaming response"""
+    # Create independent message object for this round of response
     msg = cl.Message(content="")
     
     current_tool_calls = {}
@@ -341,7 +360,19 @@ async def _handle_stream_response(client, api_params, enhanced_messages, message
     has_tool_call = False
     
     try:
-        response = await client.chat.completions.create(**api_params)
+        # Prepare LiteLLM parameters - directly pass all necessary parameters
+        litellm_params = {
+            "model": f"{model_info.provider}/{model_info.model}",
+            "stream": True,
+            "num_retries": 0,
+            "timeout": 30,
+            "api_key": model_info.api_key,
+            "base_url": model_info.base_url or None,
+            **api_params,
+        }
+        
+        logger.info(f"Call LLM: {model_info.provider}/{model_info.model}")
+        response = await acompletion(**litellm_params)
         
         try:
             async for chunk in response:
@@ -352,149 +383,147 @@ async def _handle_stream_response(client, api_params, enhanced_messages, message
                 if chunk_has_tool_call:
                     has_tool_call = True
                 
-                # 检查完成状态
+                # Check completion status
                 if finish_reason == 'tool_calls':
                     try:
-                        # 先发送当前轮次的消息（如果有内容的话）
+                        # First send the current round's message (if there's content)
                         if msg.content and msg.content.strip():
                             await msg.send()
                         
-                        # 执行工具调用
+                        # Execute tool calls
                         enhanced_messages = await _execute_tool_calls(
                             current_tool_calls, 
                             enhanced_messages
                         )
-                        return enhanced_messages, True  # 继续下一轮
+                        return enhanced_messages, True  # Continue to next round
                         
                     except Exception as e:
-                        error_message = f"处理工具调用时发生错误: {str(e)}"
+                        error_message = f"Error when processing tool calls: {str(e)}"
                         logger.error(error_message)
                         await msg.stream_token(f"\n{error_message}\n")
                         await msg.send()
-                        return messages, False  # 结束处理
+                        return messages, False  # End processing
                 
-                elif finish_reason:  # 其他完成原因
-                    if not has_tool_call:
-                        # 处理媒体标记并发送消息
-                        await _process_media_markers(msg)
-                        if msg.content and msg.content.strip():
-                            if save_starter_enabled:
-                                # 在AI回复消息上添加保存Action
-                                msg.actions = [
-                                    build_save_action()
-                                ]
-                            await msg.send()
-                        return messages, False  # 结束处理
-                        
-        except GeneratorExit:
-            logger.debug("Stream generator closed gracefully")
+                elif finish_reason:
+                    # Other completion reasons, end streaming processing
+                    break
+            
+            # Process media markers and send message
+            if not has_tool_call:
+                await _process_media_markers(msg)
+                if msg.content and msg.content.strip():
+                    if save_starter_enabled:
+                        # Add save action to AI reply message
+                        msg.actions = [
+                            build_save_action()
+                        ]
+                    await msg.send()
+                
+                # Add assistant message to history
+                if msg.content and msg.content.strip():
+                    enhanced_messages.append({
+                        "role": "assistant", 
+                        "content": msg.content
+                    })
+            else:
+                # If there are tool calls, send message directly (tool call related messages are handled elsewhere)
+                await msg.send()
+            
+            return enhanced_messages, False  # End processing
+            
         except Exception as e:
-            logger.error(f"Stream iteration error: {e}")
-        finally:
-            # 显式关闭响应流以确保资源正确释放
-            if hasattr(response, 'close'):
-                try:
-                    await response.close()
-                except Exception as close_error:
-                    logger.debug(f"Error closing response stream: {close_error}")
-                    
-    except Exception as api_error:
-        logger.error(f"API request error: {api_error}", exc_info=True)
-        
-    
-    # 如果没有工具调用，处理媒体标记并发送消息
-    if not has_tool_call:
+            error_str = str(e)
+            error_message = format_llm_error_message(model_info.name, error_str)
+            logger.error(f"Stream processing error: {error_str}")
+            await msg.stream_token(f"\n{error_message}\n")
+            # Process media markers even if there's an error
+            await _process_media_markers(msg)
+            await msg.send()
+            return messages, False
+            
+    except Exception as e:
+        error_str = str(e)
+        error_message = format_llm_error_message(model_info.name, error_str)
+        logger.error(f"LiteLLM call failed: {error_str}")
+        await msg.stream_token(f"\n{error_message}\n")
+        # Process media markers even if there's an error
         await _process_media_markers(msg)
-        if save_starter_enabled:
-            # 在AI回复消息上添加保存Action
-            msg.actions = [
-                build_save_action()
-            ]
         await msg.send()
         return messages, False
-    
-    return enhanced_messages, True
 
 
 async def process_streaming_response(
     messages: List[Dict[str, Any]], 
     model_info: ModelInfo,
-    **kwargs
 ) -> List[Dict[str, Any]]:
     """
-    处理流式响应和工具调用
+    Process streaming response and tool calls
     
     Args:
-        messages: 消息历史
-        model_info: 使用的模型信息
-        **kwargs: 其他 OpenAI API 参数
+        messages: Message history
+        model_info: Model information to use
         
     Returns:
-        更新后的消息历史
+        Updated message history
     """
     
-    # 清理steps，针对用户重新编辑已发送消息的场景做处理
+    # Clean up steps, handle scenarios where users re-edit sent messages
     chat_messages = cl.chat_context.get()
-    if len(chat_messages) >= 2:  # 至少有2条消息才需要处理
-        # 获取倒数第二条消息的时间戳
+    if len(chat_messages) >= 2:  # Need at least 2 messages to process
+        # Get timestamp of second-to-last message
         second_last_msg = chat_messages[-2]
         second_last_time = second_last_msg.created_at
         
         if second_last_time:
-            # 获取当前steps
+            # Get current steps
             current_steps = cl.user_session.get("current_steps", [])
-            # 只保留时间戳在倒数第二条消息之前的steps
+            # Only keep steps with timestamps before the second-to-last message
             filtered_steps = [
                 step for step in current_steps 
                 if str(step.created_at) <= second_last_time
             ]
-            # 更新steps
+            # Update steps
             cl.user_session.set("current_steps", filtered_steps)
     
     tools = get_all_tools()
     
-    # 注入媒体显示系统指令
+    # Inject media display system instructions
     enhanced_messages = messages.copy()
     
-    while True:  # 循环处理工具调用
-        # 准备 API 参数
+    while True:  # Loop to handle tool calls
+        # Prepare API parameters
         api_params = {
-            "model": model_info.name,
             "messages": enhanced_messages,
-            "stream": True,
-            **kwargs
         }
         
-        # 如果有工具，添加工具参数
+        # If there are tools, add tool parameters
         if tools:
             api_params["tools"] = tools
             api_params["tool_choice"] = "auto"
         
-        client = AsyncOpenAI(
-            timeout=Timeout(None), 
-            api_key=model_info.api_key, 
-            base_url=model_info.base_url,
-        )
         
+        # All parameters are passed through LiteLLM function parameters, not using environment variables
         try:
-            enhanced_messages, should_continue = await _handle_stream_response(
-                client, api_params, enhanced_messages, messages
+            enhanced_messages, should_continue = await _handle_response(
+                model_info, api_params, enhanced_messages, messages
             )
             
             if not should_continue:
                 return enhanced_messages
                 
-        finally:
-            # 显式关闭客户端以避免异步上下文冲突
-            try:
-                await client.close()
-            except Exception as client_close_error:
-                logger.debug(f"Error closing OpenAI client: {client_close_error}")
+        except Exception as e:
+            error_str = str(e)
+            error_message = format_llm_error_message(model_info.name, error_str)
+            logger.error(f"LiteLLM main loop error: {error_str}")
+            # Send error message to user
+            error_msg = cl.Message(content=error_message)
+            await error_msg.send()
+            return enhanced_messages  # Return directly, don't continue loop
 
 
-# MCP 连接管理的便捷函数
+# MCP connection management convenience functions
 async def handle_mcp_connect(connection, session: ClientSession, tools_converter_func):
-    """处理 MCP 连接的通用逻辑"""
+    """Handle common logic for MCP connections"""
     tools_result = await session.list_tools()
     openai_tools = tools_converter_func(tools_result.tools)
     
@@ -503,7 +532,7 @@ async def handle_mcp_connect(connection, session: ClientSession, tools_converter
     cl.user_session.set("mcp_tools", mcp_tools)
 
 async def handle_mcp_disconnect(name: str):
-    """处理 MCP 断开连接的通用逻辑"""
+    """Handle common logic for MCP disconnections"""
     mcp_tools = cl.user_session.get("mcp_tools", {})
     if name in mcp_tools:
         del mcp_tools[name]

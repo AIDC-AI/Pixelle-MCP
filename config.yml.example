@@ -68,15 +68,44 @@ client:
   
   # LLM model configuration (at least one of OpenAI and Ollama must be configured, the configured model needs to support tool calling)
   # Any model compatible with the OpenAI API and supporting tool calls is acceptable
-  openai_base_url: https://api.openai.com/v1
+  openai_base_url: "https://api.openai.com/v1"
+  # Get your API key at: https://platform.openai.com/api-keys
   openai_api_key: ""
   # List OpenAI models to be used, if multiple, separate with English commas
   chainlit_chat_openai_models: "gpt-4.1"
   
   # Ollama configuration (local models)
-  ollama_base_url: http://localhost:11434/v1
+  ollama_base_url: "http://localhost:11434/v1"
   # List Ollama models to be used, if multiple, separate with English commas
   ollama_models: "qwen3:latest"
   
-  # Optional, default model for conversations (must be in chainlit_chat_openai_models or ollama_models above)
+  # Gemini configuration
+  gemini_base_url: "https://generativelanguage.googleapis.com/v1beta"
+  # Get your API key at: https://aistudio.google.com/app/apikey
+  gemini_api_key: ""
+  # List Gemini models to be used, if multiple, separate with English commas
+  gemini_models: "gemini-2.5-pro,gemini-2.5-flash"
+  
+  # DeepSeek configuration
+  deepseek_base_url: "https://api.deepseek.com"
+  # Get your API key at: https://platform.deepseek.com/api_keys
+  deepseek_api_key: ""
+  # List DeepSeek models to be used, if multiple, separate with English commas
+  deepseek_models: "deepseek-chat,deepseek-coder"
+  
+  # Claude (Anthropic) configuration
+  claude_base_url: "https://api.anthropic.com"
+  # Get your API key at: https://console.anthropic.com/settings/keys
+  claude_api_key: ""
+  # List Claude models to be used, if multiple, separate with English commas
+  claude_models: "claude-3-5-sonnet-20241022,claude-3-5-haiku-20241022,claude-3-opus-20240229"
+  
+  # Qwen (Alibaba Cloud) configuration
+  qwen_base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  # Get your API key at: https://bailian.console.aliyun.com/?tab=model#/api-key
+  qwen_api_key: ""
+  # List Qwen models to be used, if multiple, separate with English commas
+  qwen_models: "qwen-plus,qwen-turbo,qwen-max,qwen2.5-72b-instruct"
+  
+  # Optional, default model for conversations (can be from any provider above)
   chainlit_chat_default_model: ""

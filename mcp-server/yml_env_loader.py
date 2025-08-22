@@ -7,10 +7,10 @@ from pathlib import Path
 
 def load_yml_and_set_env(service_key: str, config_filename: str = "config.yml"):
     """
-    优先加载当前目录下的config.yml，再兜底加载项目根目录下的config.yml，
-    只需传递service_key（如base/server/client），自动注入该key下所有配置到os.environ（变量名大写）。
-    :param service_key: 服务配置key
-    :param config_filename: 配置文件名，默认config.yml
+    First load config.yml from current directory, then fallback to config.yml from project root directory.
+    Only need to pass service_key (like base/server/client), automatically inject all configurations under that key to os.environ (variable names in uppercase).
+    :param service_key: Service configuration key
+    :param config_filename: Configuration filename, default config.yml
     """
     cwd = Path(__file__).parent.resolve()
     root = cwd.parent.resolve()
@@ -21,15 +21,15 @@ def load_yml_and_set_env(service_key: str, config_filename: str = "config.yml"):
         if config_path.exists():
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = yaml.safe_load(f)
-            print(f"[YML配置] 加载配置文件: {config_path.resolve()}")
+            print(f"[YML Config] Loading configuration file: {config_path.resolve()}")
             if not isinstance(config, dict):
-                raise ValueError(f"YAML配置格式错误: {config_path}")
+                raise ValueError(f"YAML configuration format error: {config_path}")
             service_config = config.get(service_key, {})
             if not isinstance(service_config, dict):
-                raise ValueError(f"服务 {service_key} 配置格式错误: {config_path}")
+                raise ValueError(f"Service {service_key} configuration format error: {config_path}")
             for k, v in service_config.items():
                 os.environ[k.upper()] = str(v)
             loaded = True
             break
     if not loaded:
-        raise FileNotFoundError(f"未找到{config_filename}，请在当前目录或根目录下提供配置文件") 
+        raise FileNotFoundError(f"Configuration file {config_filename} not found, please provide configuration file in current directory or root directory") 

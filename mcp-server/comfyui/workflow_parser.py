@@ -14,6 +14,7 @@ class WorkflowParam(BaseModel):
     description: Optional[str] = None
     required: bool = True
     default: Optional[Any] = None
+    handler_type: Optional[str] = None  # 新增：处理类型，如 "upload_rel" 表示URL上传返回相对路径
 
 class WorkflowParamMapping(BaseModel):
     """参数映射信息"""
@@ -21,6 +22,7 @@ class WorkflowParamMapping(BaseModel):
     node_id: str
     input_field: str
     node_class_type: str
+    handler_type: Optional[str] = None  # 新增：处理类型
 
 class WorkflowOutputMapping(BaseModel):
     """输出映射信息"""
@@ -47,21 +49,26 @@ class WorkflowParser:
     def parse_dsl_title(self, title: str) -> Optional[Dict[str, Any]]:
         """解析DSL标题
         
-        语法: $<name>.<field>[!][:<description>]
+        语法: $<name>.[~]<field>[!][:<description>]
+        其中 ~ 表示需要URL上传处理，返回相对路径
         """
-        pattern = r'^\$(\w+)\.(\w+)(!)?(?::(.+))?$'
+        pattern = r'^\$(\w+)\.(?:(~)?(\w+))(!)?(?::(.+))?$'
         match = re.match(pattern, title.strip())
         
         if not match:
             return None
         
-        name, field, required_mark, description = match.groups()
+        name, handler_mark, field, required_mark, description = match.groups()
+        
+        # 确定处理类型
+        handler_type = "upload_rel" if handler_mark else None
         
         return {
             'name': name,
             'field': field,
             'required': bool(required_mark),
-            'description': description.strip() if description else None
+            'description': description.strip() if description else None,
+            'handler_type': handler_type
         }
     
     def infer_type_from_value(self, value: Any) -> str:
@@ -161,7 +168,8 @@ class WorkflowParser:
             type=param_type,
             description=dsl_info['description'],
             required=is_required,
-            default= None if is_required else default_value
+            default= None if is_required else default_value,
+            handler_type=dsl_info['handler_type']
         )
         
         # 8. 创建参数映射
@@ -169,7 +177,8 @@ class WorkflowParser:
             param_name=dsl_info['name'],
             node_id=node_id,
             input_field=input_field,
-            node_class_type=class_type
+            node_class_type=class_type,
+            handler_type=dsl_info['handler_type']
         )
         
         return param, param_mapping, None

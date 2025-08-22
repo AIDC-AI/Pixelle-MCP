@@ -8,19 +8,14 @@
 
 <p align="center">✨ 基于 MCP 协议的 AIGC 方案，0代码将 ComfyUI 工作流无缝转化为 MCP Tool，让 LLM 与 ComfyUI 强强联合。</p>
 
+![](docs/readme-1.png)
+
 https://github.com/user-attachments/assets/7f0fc42f-9c44-4ab0-aaa8-1072082964c1
 
-https://github.com/user-attachments/assets/75d80326-191a-4133-8b04-d69e91a3c6b3
 
-https://github.com/user-attachments/assets/e376dea5-4016-4fec-a017-73bb5ab22485
+## 📋 最近更新
 
-## 📁 项目结构
-
-- **mcp-base**: 🔧 基础服务，提供文件存储和共用服务能力
-- **mcp-client**: 🌐 MCP 客户端，基于 Chainlit 构建的 Web 界面
-- **mcp-server**: 🗄️ MCP 服务端，提供各种 AIGC 工具和服务
-
-![](docs/%20mcp_structure.png)
+- ✅ **2025-08-12**：集成 LiteLLM 框架，新增 Gemini、DeepSeek、Claude、Qwen 等多模型支持
 
 
 ## 🚀 功能特性
@@ -32,6 +27,16 @@ https://github.com/user-attachments/assets/e376dea5-4016-4fec-a017-73bb5ab22485
 - ✅ 🌐 **MCP Client**: Client端基于[Chaintlit](https://github.com/Chainlit/chainlit)框架开发，继承了Chainlit的UI交互控件，支持集成更多的MCP Server
 - ✅ 🔄 **灵活部署**: 支持单独部署Server端仅提供MCP Server，或单独部署Client端仅提供MCP Client，或联合部署
 - ✅ ⚙️ **统一配置**: 采用 YAML 配置方案，一个配置文件管理所有服务
+- ✅ 🤖 **多LLM支持**: 支持多种主流LLM，包括OpenAI、Ollama、Gemini、DeepSeek、Claude、Qwen等
+
+
+## 📁 项目结构
+
+- **mcp-base**: 🔧 基础服务，提供文件存储和共用服务能力
+- **mcp-client**: 🌐 MCP 客户端，基于 Chainlit 构建的 Web 界面
+- **mcp-server**: 🗄️ MCP 服务端，提供各种 AIGC 工具和服务
+
+![](docs/%20mcp_structure.png)
 
 
 ## 🏃‍♂️ 快速开始
@@ -190,11 +195,12 @@ uv run main.py
 在 ComfyUI 画布中，双击节点标题进行编辑，使用以下 DSL 语法定义参数：
 
 ```
-$<参数名>.<字段名>[!][:<描述信息>]
+$<参数名>.[~]<字段名>[!][:<描述信息>]
 ```
 
 #### 🔍 语法说明：
 - `参数名`：生成的MCP工具函数的参数名
+- `~`：可选，表示对URL参数进行上传处理，返回相对路径
 - `字段名`：节点中对应的输入字段名
 - `!`：表示该参数为必需参数
 - `描述信息`：参数的描述
@@ -205,6 +211,13 @@ $<参数名>.<字段名>[!][:<描述信息>]
 
 - LoadImage 节点标题设为：`$image.image!:输入图片URL`
 - 含义：创建名为 `image` 的必需参数，对应节点的 `image` 字段
+
+**URL上传处理示例：**
+
+- 任意节点标题设为：`$image.~image!:输入图片URL`
+- 含义：创建名为 `image` 的必需参数，系统会自动下载URL并上传到ComfyUI，返回相对路径
+
+> 📝 注：`LoadImage`、`VHS_LoadAudioUpload`、`VHS_LoadVideo` 等节点已内置此功能，无需添加 `~` 标记
 
 **可选参数示例：**
 
@@ -302,10 +315,10 @@ $<参数名>.<字段名>[!][:<描述信息>]
 
 * 🧩 [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
 * 💬 [Chainlit](https://github.com/Chainlit/chainlit)
-
 * 🔌 [MCP](https://modelcontextprotocol.io/introduction)
 * 🎬 [WanVideo](https://github.com/Wan-Video/Wan2.1)
 * ⚡ [Flux](https://github.com/black-forest-labs/flux)
+* 🤖 [LiteLLM](https://github.com/BerriAI/litellm)
 
 ## License
 本项目基于MIT许可证（[LICENSE](LICENSE), SPDX-License-identifier: MIT）发布。

@@ -18,7 +18,18 @@ async def save_workflow_tool(
     uploaded_filename: str = Field(description="Use the name of the uploaded file or a name specified by the user. Must be in English and without a file extension."),
 ):
     """
-    Add or update a workflow to MCP tools.
+    Add or update a workflow in MCP tools.
+
+    This tool should be invoked whenever the user wants to:
+    - add a new workflow / tool
+    - save a workflow / tool
+    - update or overwrite an existing workflow / tool
+    - store or register a workflow
+    - keep or preserve a workflow for later use
+
+    Common phrasings include:
+    "add this tool", "add this workflow", "save this workflow",
+    "update this tool", "overwrite the workflow", "store this workflow".
     """
     def error(msg: str):
         return json.dumps({ "success": False, "error": msg })

@@ -8,6 +8,7 @@ dependencies = [
     "boto3>=1.38.34",
     "chainlit>=2.6.2",
     "fastmcp>=2.7.1",
+    "litellm>=1.75.5.post1",
     "openai>=1.84.0",
     "pyyaml>=6.0.2",
     "socksio>=1.0.0",

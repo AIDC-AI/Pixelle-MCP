@@ -8,6 +8,11 @@ import mimetypes
 from contextlib import contextmanager
 from typing import Generator, List, Union, overload
 from core import logger
+from utils.os_util import get_data_path
+
+
+TEMP_DIR = get_data_path("temp")
+os.makedirs(TEMP_DIR, exist_ok=True)
 
 
 @overload
@@ -63,9 +68,10 @@ def download_files(file_urls: Union[str, List[str]], suffix: str = None, auto_cl
                     if not file_suffix:
                         file_suffix = '.tmp'  # 默认后缀
             
-            # 创建临时文件
-            with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix) as temp_file:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_suffix, dir=TEMP_DIR) as temp_file:
                 temp_file.write(response.content)
+                temp_file.flush()
+                os.fsync(temp_file.fileno())
                 temp_file_paths.append(temp_file.name)
         
         logger.info(f"已下载 {len(temp_file_paths)} 个文件到临时文件")
@@ -101,16 +107,16 @@ def create_temp_file(suffix: str = '.tmp') -> Generator[str, None, None]:
     自动清理临时文件
     """
     temp_file_path = None
-    try:
-        # 创建临时文件
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+    try:        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix, dir=TEMP_DIR) as temp_file:
             temp_file_path = temp_file.name
         
         logger.debug(f"创建临时文件: {temp_file_path}")
         yield temp_file_path
         
     finally:
-        cleanup_temp_files(temp_file_path)
+        if temp_file_path:
+            cleanup_temp_files(temp_file_path)
 
 
 def get_ext_from_content_type(content_type: str) -> str:
