@@ -1,51 +1,20 @@
 version: '3.8'
 
 services:
-  # Pixelle Base service
-  mcp-base:
-    build: ./mcp-base
+  # Pixelle MCP Service (Unified Architecture)
+  pixelle:
+    build: .
     ports:
-      - "9001:9001"
+      - "9004:9004"
     volumes:
-      - ./mcp-base/data:/app/data
-      - ./config.yml:/app/config.yml:ro
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-    restart: unless-stopped
-
-  # Pixelle MCP Server
-  mcp-server:
-    build: ./mcp-server
-    depends_on:
-      mcp-base:
-        condition: service_healthy
-    ports:
-      - "9002:9002"
-    volumes:
-      - ./mcp-server/data:/app/data
-      - ./config.yml:/app/config.yml:ro
-    environment:
-      - MCP_BASE_URL=http://mcp-base:9001
-    restart: unless-stopped
-
-  # Pixelle MCP Client
-  mcp-client:
-    build: ./mcp-client
-    depends_on:
-      mcp-base:
-        condition: service_healthy
-    ports:
-      - "9003:9003"
-    volumes:
-      - ./mcp-client/data:/app/data
-      - ./mcp-client/.files:/app/.files
-      - ./config.yml:/app/config.yml:ro
-    environment:
-      - MCP_BASE_URL=http://mcp-base:9001
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped 

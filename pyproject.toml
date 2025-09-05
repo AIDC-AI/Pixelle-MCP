@@ -1,0 +1,79 @@
+[project]
+name = "pixelle"
+version = "0.1.9"
+description = "Pixelle MCP: Convert ComfyUI workflows into MCP Tools with a single command, providing an MCP server and a Chainlit-based web UI."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+  { name = "AIDC-AI" }
+]
+keywords = ["MCP", "ComfyUI", "LLM", "AIGC", "Chainlit"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+dependencies = [
+    "aiofiles>=24.1.0",
+    "aiohttp>=3.9.0",
+    "boto3>=1.38.34",
+    "chainlit>=2.7.1.1",
+    "fastapi>=0.116.1",
+    "fastmcp>=2.7.1",
+    "litellm>=1.76.0",
+    "pillow>=11.2.1",
+    "psutil>=5.9.0",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.3",
+    "websockets>=12.0",
+    "typer>=0.12.0",
+    "questionary>=2.0.0",
+    "rich>=13.0.0",
+]
+
+[project.urls]
+Homepage = "https://pixelle.ai"
+Repository = "https://github.com/AIDC-AI/Pixelle-MCP"
+Issues = "https://github.com/AIDC-AI/Pixelle-MCP/issues"
+
+[project.scripts]
+pixelle = "pixelle.cli:main"
+pixelle-mcp = "pixelle.cli:main"
+
+[tool.hatch.build]
+include = [
+  "pixelle/**",
+  "README*.md",
+  "LICENSE",
+  "workflows/**",
+  "docs/**",
+  "pyproject.toml",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pixelle"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"workflows" = "workflows"
+"docs" = "docs"
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple/"
+publish-url = "https://upload.pypi.org/legacy/"
+explicit = true
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
+
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"

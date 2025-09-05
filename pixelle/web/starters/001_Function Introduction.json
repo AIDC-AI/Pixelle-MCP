@@ -1,0 +1,10 @@
+{
+  "icon": "/public/catalog.svg",
+  "messages": [
+    {
+      "role": "user",
+      "type": "message",
+      "content": "What you can do?"
+    }
+  ]
+}

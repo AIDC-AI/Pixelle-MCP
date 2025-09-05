@@ -11,140 +11,139 @@ https://github.com/user-attachments/assets/65422cef-96f9-44fe-a82b-6a124674c417
 
 ## 📋 Recent Updates
 
+- ✅ **2025-09-03**: Architecture refactoring from three services to unified application; added CLI tool support; published to [PyPI](https://pypi.org/project/pixelle/)
 - ✅ **2025-08-12**: Integrated the LiteLLM framework, adding multi-model support for Gemini, DeepSeek, Claude, Qwen, and more
 
 
 ## 🚀 Features
 
 - ✅ 🔄 **Full-modal Support**: Supports TISV (Text, Image, Sound/Speech, Video) full-modal conversion and generation
-- ✅ 🧩 **ComfyUI Ecosystem**: Server-side is built on [ComfyUI](https://github.com/comfyanonymous/ComfyUI), inheriting all capabilities from the open ComfyUI ecosystem
+- ✅ 🧩 **ComfyUI Ecosystem**: Built on [ComfyUI](https://github.com/comfyanonymous/ComfyUI), inheriting all capabilities from the open ComfyUI ecosystem
 - ✅ 🔧 **Zero-code Development**: Defines and implements the Workflow-as-MCP Tool solution, enabling zero-code development and dynamic addition of new MCP Tools
-- ✅ 🗄️ **MCP Server**: Server provides functionality based on the [MCP](https://modelcontextprotocol.io/introduction) protocol, supporting integration with any MCP client (including but not limited to Cursor, Claude Desktop, etc.)
-- ✅ 🌐 **MCP Client**: Client is developed based on the [Chainlit](https://github.com/Chainlit/chainlit) framework, inheriting Chainlit's UI controls and supporting integration with more MCP Servers
-- ✅ 🔄 **Flexible Deployment**: Supports standalone deployment of Server-side only as MCP Server, or standalone deployment of Client-side only as MCP Client, or combined deployment
-- ✅ ⚙️ **Unified Configuration**: Uses YAML configuration scheme, one config file manages all services
+- ✅ 🗄️ **MCP Server**: Based on the [MCP](https://modelcontextprotocol.io/introduction) protocol, supporting integration with any MCP client (including but not limited to Cursor, Claude Desktop, etc.)
+- ✅ 🌐 **Web Interface**: Developed based on the [Chainlit](https://github.com/Chainlit/chainlit) framework, inheriting Chainlit's UI controls and supporting integration with more MCP Servers
+- ✅ 📦 **One-click Deployment**: Supports PyPI installation, CLI commands, Docker and other deployment methods, ready to use out of the box
+- ✅ ⚙️ **Simplified Configuration**: Uses environment variable configuration scheme, simple and intuitive configuration
 - ✅ 🤖 **Multi-LLM Support**: Supports multiple mainstream LLMs, including OpenAI, Ollama, Gemini, DeepSeek, Claude, Qwen, and more
 
 
-## 📁 Project Structure
+## 📁 Project Architecture
 
-- **mcp-base**: 🔧 Basic service, provides file storage and shared service capabilities
-- **mcp-client**: 🌐 MCP client, a web interface built on Chainlit
-- **mcp-server**: 🗄️ MCP server, provides various AIGC tools and services
+Pixelle MCP adopts a **unified architecture design**, integrating MCP server, web interface, and file services into one application, providing:
+
+- 🌐 **Web Interface**: Chainlit-based chat interface supporting multimodal interaction
+- 🔌 **MCP Endpoint**: For external MCP clients (such as Cursor, Claude Desktop) to connect
+- 📁 **File Service**: Handles file upload, download, and storage
+- 🛠️ **Workflow Engine**: Automatically converts ComfyUI workflows into MCP tools
 
 ![](docs/%20mcp_structure.png)
 
 
 ## 🏃‍♂️ Quick Start
 
-### 📥 1. Clone the Source Code & Configure Services
+Choose the deployment method that best suits your needs, from simple to complex:
 
-#### 📦 1.1 Clone the Source Code
+### 🎯 Method 1: One-click Experience
 
-```shell
+> 💡 **Zero configuration startup, perfect for quick experience and testing**
+
+#### 🚀 Temporary Run
+
+```bash
+# Start with one command, no system installation required
+uvx pixelle@latest
+```
+
+📚 **[View uvx CLI Reference →](docs/CLI.md#uvx-method)**
+
+#### 📦 Persistent Installation
+
+```bash
+# Install to system
+pip install -U pixelle
+
+# Start service
+pixelle
+```
+
+📚 **[View pip CLI Reference →](docs/CLI.md#pip-install-method)**
+
+After startup, it will automatically enter the **configuration wizard** to guide you through ComfyUI connection and LLM configuration.
+
+### 🛠️ Method 2: Local Development Deployment
+
+> 💡 **Supports custom workflows and secondary development**
+
+#### 📥 1. Get Source Code
+
+```bash
 git clone https://github.com/AIDC-AI/Pixelle-MCP.git
 cd Pixelle-MCP
 ```
 
-#### ⚙️ 1.2 Configure Services
+#### 🚀 2. Start Service
 
-The project uses a unified YAML configuration scheme:
-
-```shell
-# Copy the configuration example file
-cp config.yml.example config.yml
-# Edit configuration items as needed
+```bash
+# Interactive mode (recommended)
+uv run pixelle
 ```
 
-**📋 Detailed Configuration Instructions:**
+📚 **[View Complete CLI Reference →](docs/CLI.md#uv-run-method)**
 
-The configuration file contains three main sections: Basic Service, MCP Server, and MCP Client. Each section has detailed configuration item descriptions in [`config.yml.example`](config.yml.example).
+#### 🔧 3. Add Custom Workflows (Optional)
 
-**🔍 Configuration Checklist:**
-- ✅ Copied `config.yml.example` to `config.yml`
-- ✅ Configured ComfyUI service address (ensure ComfyUI is running)
-- ✅ Configured at least one LLM model (OpenAI or Ollama)
-- ✅ Port numbers are not occupied by other services (9001, 9002, 9003)
-
-### 🔧 2. Add MCP Tool (Optional)
-
-This step is optional and only affects your Agent's capabilities. You can skip it if not needed for now.
-
-The `mcp-server/workflows` directory contains a set of popular workflows by default. Run the following command to copy them to your mcp-server. When the service starts, they will be automatically converted into MCP Tools for LLM use.
-
-**Note: It is strongly recommended to test the workflow in your ComfyUI canvas before copying, to ensure smooth execution later.**
-
-```shell
-cp -r mcp-server/workflows/* mcp-server/data/custom_workflows/
+```bash
+# Copy example workflows to data directory (run this in your desired project directory)
+cp -r workflows/* ./data/custom_workflows/
 ```
 
-### 🚀 3. Start the Services
+**⚠️ Important**: Make sure to test workflows in ComfyUI first to ensure they run properly, otherwise execution will fail.
 
-#### 🎯 3.1 Start with Docker (Recommended)
+### 🐳 Method 3: Docker Deployment
 
-```shell
-# Start all services
+> 💡 **Suitable for production environments and containerized deployment**
+
+#### 📋 1. Prepare Configuration
+
+```bash
+git clone https://github.com/AIDC-AI/Pixelle-MCP.git
+cd Pixelle-MCP
+
+# Create environment configuration file
+cp .env.example .env
+# Edit .env file to configure your ComfyUI address and LLM settings
+```
+
+#### 🚀 2. Start Container
+
+```bash
+# Start all services in background
 docker compose up -d
+
+# View logs
+docker compose logs -f
 ```
 
-#### 🛠️ 3.2 One-click Script Start
+### 🌐 Access Services
 
-Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) environment.
+Regardless of which method you use, after startup you can access via:
 
-**Linux/macOS users:**
-```shell
-# Start all services (foreground)
-./run.sh
+- **🌐 Web Interface**: http://localhost:9004  
+  *Default username and password are both `dev`, can be modified after startup*
+- **🔌 MCP Endpoint**: http://localhost:9004/pixelle/mcp  
+  *For MCP clients like Cursor, Claude Desktop to connect*
 
-# Or
+**💡 Port Configuration**: Default port is 9004, can be customized via environment variable `PORT=your_port`.
 
-# Start all services (background)
-./run.sh start --daemon
-```
+### ⚙️ Initial Configuration
 
-**Windows users:**
+On first startup, the system will automatically detect configuration status:
 
-Simply double-click the `run.bat` script in the root directory
+1. **🔧 ComfyUI Connection**: Ensure ComfyUI service is running at `http://localhost:8188`
+2. **🤖 LLM Configuration**: Configure at least one LLM provider (OpenAI, Ollama, etc.)
+3. **📁 Workflow Directory**: System will automatically create necessary directory structure
 
-#### 🛠️ 3.3 Manual Service Start
-
-Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) environment.
-
-**Start Basic Service (mcp-base):**
-```shell
-cd mcp-base
-# Install dependencies (only needed on first run or after updates)
-uv sync
-# Start service
-uv run main.py
-```
-
-**Start Server (mcp-server):**
-```shell
-cd mcp-server
-# Install dependencies (only needed on first run or after updates)
-uv sync
-# Start service
-uv run main.py
-```
-
-**Start Client (mcp-client):**
-```shell
-cd mcp-client
-# Install dependencies (only needed on first run or after updates)
-uv sync
-# Start service (for hot-reload in dev mode: uv run chainlit run main.py -w --port 9003)
-uv run main.py
-```
-
-
-### 🌐 4. Access the Services
-
-After startup, the service addresses are as follows:
-
-- **Client**: 🌐 http://localhost:9003 (Chainlit Web UI, default username and password are both `dev`, can be changed in [`auth.py`](mcp-client/auth/auth.py))
-- **Server**: 🗄️ http://localhost:9002/sse (MCP Server)
-- **Base Service**: 🔧 http://localhost:9001/docs (File storage and basic API)
+**🆘 Need Help?** Join community groups for support (see Community section below)
 
 ## 🛠️ Add Your Own MCP Tool
 

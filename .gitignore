@@ -13,11 +13,19 @@ temp
 
 # Scripts
 redeploy.sh
+publish*.sh
 
 .idea
 
-# 运行时生成的文件
+# Generated files
 .pids
 logs/
 config*.yml
 */config*.yml
+
+data/
+.files
+
+!.env.example
+.env*
+dist/

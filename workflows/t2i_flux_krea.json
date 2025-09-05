@@ -1,0 +1,390 @@
+{
+  "2": {
+    "inputs": {
+      "noise": [
+        "5",
+<<<<<<<< HEAD:mcp-server/workflows/t2i_by_local_flux.json
+        0
+      ],
+      "guider": [
+        "7",
+        0
+      ],
+      "sampler": [
+        "4",
+        0
+      ],
+      "sigmas": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "10",
+========
+        0
+      ],
+      "guider": [
+        "7",
+        0
+      ],
+      "sampler": [
+        "4",
+        0
+      ],
+      "sigmas": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "3": {
+    "inputs": {
+      "scheduler": "simple",
+      "steps": 20,
+      "denoise": 1,
+      "model": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "5": {
+    "inputs": {
+      "noise_seed": 728241998777987
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "6": {
+    "inputs": {
+      "clip_name1": "t5xxl_fp16.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "DualCLIPLoader"
+    }
+  },
+  "7": {
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "conditioning": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "BasicGuider"
+    }
+  },
+  "8": {
+    "inputs": {
+      "unet_name": "flux1-krea-dev.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model"
+    }
+  },
+  "9": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "10": {
+    "inputs": {
+      "width": [
+        "31",
+        0
+      ],
+      "height": [
+        "32",
+        0
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "11": {
+    "inputs": {
+      "text": [
+        "21",
+        0
+      ],
+      "clip": [
+        "6",
+>>>>>>>> dev:workflows/t2i_flux_krea.json
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "自定义采样器（高级）"
+    }
+  },
+  "14": {
+    "inputs": {
+      "samples": [
+        "2",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "20": {
+    "inputs": {
+<<<<<<<< HEAD:mcp-server/workflows/t2i_by_local_flux.json
+      "scheduler": "simple",
+      "steps": 20,
+      "denoise": 1,
+      "model": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "基本调度器"
+    }
+  },
+  "4": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "K采样器选择"
+========
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "21": {
+    "inputs": {
+      "text": " a dog"
+    },
+    "class_type": "Text _O",
+    "_meta": {
+      "title": "$prompt.text!:image prompt"
+>>>>>>>> dev:workflows/t2i_flux_krea.json
+    }
+  },
+  "24": {
+    "inputs": {
+<<<<<<<< HEAD:mcp-server/workflows/t2i_by_local_flux.json
+      "noise_seed": 1091846418466568
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "随机噪波"
+    }
+  },
+  "6": {
+    "inputs": {
+      "clip_name1": "t5xxl_fp16.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "双CLIP加载器"
+    }
+  },
+  "7": {
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "conditioning": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "基本引导器"
+    }
+  },
+  "8": {
+    "inputs": {
+      "unet_name": "flux1-dev.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "9": {
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "10": {
+    "inputs": {
+      "width": [
+        "27",
+        0
+      ],
+      "height": [
+        "28",
+        0
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent图像"
+    }
+  },
+  "11": {
+    "inputs": {
+      "text": [
+        "21",
+        0
+      ],
+      "clip": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "14": {
+    "inputs": {
+      "samples": [
+        "2",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "20": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  },
+  "21": {
+    "inputs": {
+      "text": "A serene and peaceful scene of a European/American girl playing guitar by the seaside. The background features a calm ocean under soft, natural lighting, with tranquil sky and subtle waves.  The overall atmosphere is quiet and harmonious, evoking a sense of relaxation and gentle breeze.  Horizontal composition, photorealistic style,"
+    },
+    "class_type": "Text _O",
+    "_meta": {
+      "title": "$prompt.text!:image prompt"
+    }
+  },
+  "24": {
+    "inputs": {
+      "text": "Generate high-quality images from text prompts using local FLUX 1.1 model.\n    \n    Creates completely new images with exceptional detail, style diversity, and prompt adherence.\n    The model excels at photorealistic scenes, artistic styles, and complex compositions.\n    \n    Prompt writing tips for best results:\n    - Be detailed and specific: include colors, mood, lighting, and composition\n    - Use natural language and full sentences rather than keywords\n    - For photos: mention camera type, settings (e.g., \"shot on DSLR, f/2.8, golden hour\")\n    - For portraits: describe features, expressions, clothing, and background\n    - For scenes: specify foreground, middle ground, and background elements\n    \n    Excellent prompt examples:\n    - \"birthday, girl selfie with bright smile and colorful balloons\"\n    - \"Close-up portrait of a child with bright vivid emotions, sparkling eyes full of joy, sunlight dancing on rosy cheeks\"\n    - \"Serene lake reflecting dense forest during golden hour, shot on DSLR with wide-angle lens, f/8, perfect symmetry\"\n    - \"Vintage travel poster for Paris, Eiffel Tower silhouette in warm sunset colors, 'PARIS' in golden Art Deco font\"\n    - \"Ethereal dragon with neon lightning crystal on head, glowing blue eyes, majestic wings spread wide\""
+    },
+========
+      "text": "Generate high-quality images from text prompts using local FLUX_KREA model.\n    \n    Creates completely new images with exceptional detail, style diversity, and prompt adherence.\n    The model excels at photorealistic scenes, artistic styles, and complex compositions.\n    \n    Prompt writing tips for best results:\n    - Be detailed and specific: include colors, mood, lighting, and composition\n    - Use natural language and full sentences rather than keywords\n    - For photos: mention camera type, settings (e.g., \"shot on DSLR, f/2.8, golden hour\")\n    - For portraits: describe features, expressions, clothing, and background\n    - For scenes: specify foreground, middle ground, and background elements\n    \n    Excellent prompt examples:\n    - \"birthday, girl selfie with bright smile and colorful balloons\"\n    - \"Close-up portrait of a child with bright vivid emotions, sparkling eyes full of joy, sunlight dancing on rosy cheeks\"\n    - \"Serene lake reflecting dense forest during golden hour, shot on DSLR with wide-angle lens, f/8, perfect symmetry\"\n    - \"Vintage travel poster for Paris, Eiffel Tower silhouette in warm sunset colors, 'PARIS' in golden Art Deco font\"\n    - \"Ethereal dragon with neon lightning crystal on head, glowing blue eyes, majestic wings spread wide\""
+    },
+>>>>>>>> dev:workflows/t2i_flux_krea.json
+    "class_type": "Text _O",
+    "_meta": {
+      "title": "MCP"
+    }
+  },
+<<<<<<<< HEAD:mcp-server/workflows/t2i_by_local_flux.json
+  "27": {
+========
+  "31": {
+>>>>>>>> dev:workflows/t2i_flux_krea.json
+    "inputs": {
+      "value": 1024
+    },
+    "class_type": "easy int",
+    "_meta": {
+      "title": "$width.value!:image width"
+    }
+  },
+<<<<<<<< HEAD:mcp-server/workflows/t2i_by_local_flux.json
+  "28": {
+========
+  "32": {
+>>>>>>>> dev:workflows/t2i_flux_krea.json
+    "inputs": {
+      "value": 1024
+    },
+    "class_type": "easy int",
+    "_meta": {
+      "title": "$height.value!:image height"
+    }
+  }
+}

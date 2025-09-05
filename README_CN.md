@@ -11,143 +11,139 @@ https://github.com/user-attachments/assets/7f0fc42f-9c44-4ab0-aaa8-1072082964c1
 
 ## 📋 最近更新
 
+- ✅ **2025-09-03**：架构重构，从三服务合并为统一应用；新增CLI工具支持；发布到 [PyPI](https://pypi.org/project/pixelle/)
 - ✅ **2025-08-12**：集成 LiteLLM 框架，新增 Gemini、DeepSeek、Claude、Qwen 等多模型支持
 
 
 ## 🚀 功能特性
 
 - ✅ 🔄 **全模态支持**: 支持TISV（Text、Image、Sound/Speech、Video）全模态的互转和生成
-- ✅ 🧩 **ComfyUI生态**: Server端底层基于[ComfyUI](https://github.com/comfyanonymous/ComfyUI)实现，继承ComfyUI的开放生态下的所有能力
+- ✅ 🧩 **ComfyUI生态**: 底层基于[ComfyUI](https://github.com/comfyanonymous/ComfyUI)实现，继承ComfyUI的开放生态下的所有能力
 - ✅ 🔧 **零代码开发**: 制定并实现了 Workflow 即 MCP Tool 的方案，0代码开发，即可动态添加新的 MCP Tool
-- ✅ 🗄️ **MCP Server**: Server端基于[MCP](https://modelcontextprotocol.io/introduction)协议提供功能支持，支持任意mcp client集成（包含但不限于Cursor、Claude Desktop等）
-- ✅ 🌐 **MCP Client**: Client端基于[Chaintlit](https://github.com/Chainlit/chainlit)框架开发，继承了Chainlit的UI交互控件，支持集成更多的MCP Server
-- ✅ 🔄 **灵活部署**: 支持单独部署Server端仅提供MCP Server，或单独部署Client端仅提供MCP Client，或联合部署
-- ✅ ⚙️ **统一配置**: 采用 YAML 配置方案，一个配置文件管理所有服务
+- ✅ 🗄️ **MCP Server**: 基于[MCP](https://modelcontextprotocol.io/introduction)协议提供功能支持，支持任意mcp client集成（包含但不限于Cursor、Claude Desktop等）
+- ✅ 🌐 **Web界面**: 基于[Chainlit](https://github.com/Chainlit/chainlit)框架开发，继承了Chainlit的UI交互控件，支持集成更多的MCP Server
+- ✅ 📦 **一键部署**: 支持PyPI安装、CLI命令行、Docker等多种部署方式，开箱即用
+- ✅ ⚙️ **简化配置**: 采用环境变量配置方案，配置简单直观
 - ✅ 🤖 **多LLM支持**: 支持多种主流LLM，包括OpenAI、Ollama、Gemini、DeepSeek、Claude、Qwen等
 
 
-## 📁 项目结构
+## 📁 项目架构
 
-- **mcp-base**: 🔧 基础服务，提供文件存储和共用服务能力
-- **mcp-client**: 🌐 MCP 客户端，基于 Chainlit 构建的 Web 界面
-- **mcp-server**: 🗄️ MCP 服务端，提供各种 AIGC 工具和服务
+Pixelle MCP 采用**统一架构设计**，将MCP服务端、Web界面和文件服务整合为一个应用，提供：
+
+- 🌐 **Web界面**: 基于 Chainlit 的聊天界面，支持多模态交互
+- 🔌 **MCP端点**: 供外部MCP客户端（如Cursor、Claude Desktop）连接
+- 📁 **文件服务**: 处理文件上传、下载和存储
+- 🛠️ **工作流引擎**: 自动将ComfyUI工作流转换为MCP工具
 
 ![](docs/%20mcp_structure.png)
 
 
 ## 🏃‍♂️ 快速开始
 
-> 安装教程也可以参考 [文档](https://e1xa5p6s6k.feishu.cn/wiki/Q7kXwoe7YifW01kmGkVcaMfonZ8?from=from_copylink)，这里提供更详细的安装步骤和示例。
+选择最适合你的部署方式，从简单到复杂：
 
-### 📥 1. 克隆源码 & 配置服务
+### 🎯 方式1：一键体验
 
-#### 📦 1.1 克隆源码
+> 💡 **零配置启动，适合快速体验和测试**
 
-```shell
+#### 🚀 临时运行
+
+```bash
+# 一条命令启动，无需安装到系统
+uvx pixelle@latest
+```
+
+📚 **[查看uvx完整命令手册 →](docs/CLI_CN.md#uvx-方式)**
+
+#### 📦 持久安装
+
+```bash
+# 安装到系统
+pip install -U pixelle
+
+# 启动服务
+pixelle
+```
+
+📚 **[查看pip完整命令手册 →](docs/CLI_CN.md#pip-install-方式)**
+
+启动后会自动进入**配置向导**，引导你完成ComfyUI连接和LLM配置。
+
+### 🛠️ 方式2：本地开发部署
+
+> 💡 **支持自定义工作流和二次开发**
+
+#### 📥 1. 获取源码
+
+```bash
 git clone https://github.com/AIDC-AI/Pixelle-MCP.git
 cd Pixelle-MCP
 ```
 
-#### ⚙️ 1.2 配置服务
+#### 🚀 2. 启动服务
 
-项目采用统一的 YAML 配置方案：
-
-```shell
-# 复制配置示例文件
-# 或者直接复制一份并修改名字
-cp config.yml.example config.yml
-# 根据需要修改配置项
+```bash
+# 交互模式（推荐）
+uv run pixelle
 ```
 
-**📋 详细配置说明：**
+📚 **[查看完整CLI命令手册 →](docs/CLI_CN.md#uv-run-方式)**
 
-配置文件包含三个主要部分：基础服务、MCP服务端、MCP客户端。在 [`config.yml.example`](config.yml.example) 中每个部分都有详细的配置项说明。
+#### 🔧 3. 添加自定义工作流（可选）
 
-**🔍 配置检查清单：**
-- ✅ 已复制 `config.yml.example` 为 `config.yml`
-- ✅ 已配置 ComfyUI 服务地址（确保ComfyUI正在运行）
-- ✅ 已配置至少一个LLM模型（OpenAI或Ollama）
-- ✅ 端口号未被其他服务占用（9001, 9002, 9003）
-
-### 🔧 2. 添加MCP Tool（可选）
-
-这一步是可选的，只会决定你Agent的能力，不影响正常对话，如果你暂时不需要，可以先跳过。
-
-`mcp-server/workflows`中是我们默认提供的一套目前比较热门的工作流，运行如下命令可以将其拷贝到你的mcp-server中，服务启动时会自动将其转化为MCP Tool，供大模型调用。
-
-**注：这里强烈建议在拷贝之前，先将工作流拖进你的ComfyUI画布试运行，以确保后续调用过程中能够顺利执行。**
-
-```shell
-cp -r mcp-server/workflows/* mcp-server/data/custom_workflows/
+```bash
+# 复制示例工作流到数据目录（在您希望的项目目录中运行此命令）
+cp -r workflows/* ./data/custom_workflows/
 ```
 
-### 🚀 3. 启动服务（任选其一）
+**⚠️ 重要**：务必先在ComfyUI中测试工作流能正常运行，否则后续执行会失败。
 
-#### 🎯 3.1 Docker方式启动（推荐）
+### 🐳 方式3：Docker部署（生产环境）
 
-```shell
-# 启动所有服务
+> 💡 **适合生产环境和容器化部署**
+
+#### 📋 1. 准备配置
+
+```bash
+git clone https://github.com/AIDC-AI/Pixelle-MCP.git
+cd Pixelle-MCP
+
+# 创建环境配置文件
+cp .env.example .env
+# 编辑 .env 文件，配置你的ComfyUI地址和LLM设置
+```
+
+#### 🚀 2. 启动容器
+
+```bash
+# 后台启动所有服务
 docker compose up -d
+
+# 查看日志
+docker compose logs -f
 ```
 
-#### 🛠️ 3.2 一键脚本启动
+### 🌐 访问服务
 
-需要先安装 [uv](https://docs.astral.sh/uv/getting-started/installation/) 环境。
+无论使用哪种方式，启动完成后都可以通过以下地址访问：
 
-**Linux/macOS 用户**：
-```shell
-# 启动所有服务（前台运行）
-./run.sh
+- **🌐 Web界面**: http://localhost:9004  
+  *默认用户名密码均为`dev`，可在启动后修改*
+- **🔌 MCP端点**: http://localhost:9004/pixelle/mcp  
+  *供Cursor、Claude Desktop等MCP客户端连接*
 
-# 或
+**💡 端口配置**：默认端口为9004，可通过环境变量 `PORT=你的端口` 自定义。
 
-# 启动所有服务（后台运行）
-./run.sh start --daemon
-```
+### ⚙️ 首次配置
 
-**Windows 用户**：
+首次启动时，系统会自动检测配置状态：
 
-直接双击根目录下的 `run.bat` 脚本
+1. **🔧 ComfyUI连接**：确保ComfyUI服务运行在 `http://localhost:8188`
+2. **🤖 LLM配置**：至少配置一个LLM提供商（OpenAI、Ollama等）
+3. **📁 工作流目录**：系统会自动创建必要的目录结构
 
-#### 🛠️ 3.3 手动启动服务
-
-需要先安装 [uv](https://docs.astral.sh/uv/getting-started/installation/) 环境。
-
-**启动基础服务（mcp-base）**：
-```shell
-cd mcp-base
-# 安装依赖（仅首次或更新时需要）
-uv sync
-# 启动服务
-uv run main.py
-```
-
-**启动服务端（mcp-server）**：
-```shell
-cd mcp-server
-# 安装依赖（仅首次或更新时需要）
-uv sync
-# 启动服务
-uv run main.py
-```
-
-**启动客户端（mcp-client）**：
-```shell
-cd mcp-client
-# 安装依赖（仅首次或更新时需要）
-uv sync
-# 启动服务（开发模式需要热更新时，运行：uv run chainlit run main.py -w --port 9003）
-uv run main.py
-```
-
-
-### 🌐 4. 访问服务
-
-启动完成后，各服务地址如下：
-
-- **客户端**: 🌐 http://localhost:9003 (Chainlit Web UI，默认用户名密码均为`dev`，可以在 [`auth.py`](mcp-client/auth/auth.py) 中更改)
-- **服务端**: 🗄️ http://localhost:9002/sse (MCP Server)
-- **基础服务**: 🔧 http://localhost:9001/docs (文件存储和基础API)
+**🆘 需要帮助？** 加入社区群组获取支持（见下方社区交流部分）
 
 ## 🛠️ 添加自己的MCP Tool
 
