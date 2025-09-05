@@ -101,7 +101,7 @@ if not any([
     qwen_models,
 ]):
     raise ValueError(
-        "Configuration Error: No models configured; please set at least one model in `config.yml` "
+        "Configuration Error: No models configured; please set at least one model in `.env` "
         "(OpenAI, Ollama, Gemini, DeepSeek, Claude, or Qwen)."
     )
 
