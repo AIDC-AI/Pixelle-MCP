@@ -21,3 +21,6 @@ redeploy.sh
 logs/
 config*.yml
 */config*.yml
+
+# 数据目录
+data/
