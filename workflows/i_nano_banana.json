@@ -1,0 +1,72 @@
+{
+  "3": {
+    "inputs": {
+      "prompt": [
+        "7",
+        0
+      ],
+      "model": "gemini-2.5-flash-image-preview",
+      "seed": 42,
+      "images": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "GeminiImageNode",
+    "_meta": {
+      "title": "Google Gemini Image"
+    }
+  },
+  "4": {
+    "inputs": {
+      "url": ""
+    },
+    "class_type": "LoadImagesFromURL",
+    "_meta": {
+      "title": "$image_url.url!:The image must be url，Multiple urls can be uploaded, but each url must have a carriage return directly"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": ""
+    },
+    "class_type": "Text _O",
+    "_meta": {
+      "title": "$prompt.text!:User-entered prompt word"
+    }
+  },
+  "8": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "9": {
+    "inputs": {
+      "value": "This is a Google Image editing workflow:\nUsers can only enter 1-10 images, with a maximum of 10 images. The prompt words must be in English."
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "MCP"
+    }
+  },
+  "10": {
+    "inputs": {
+      "images": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "ImageListToImageBatch",
+    "_meta": {
+      "title": "Image List to Image Batch"
+    }
+  }
+}
