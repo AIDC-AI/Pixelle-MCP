@@ -18,7 +18,8 @@ publish*.sh
 .idea
 
 # Generated files
-.pids
+*.pids
+*.pid
 logs/
 config*.yml
 */config*.yml
