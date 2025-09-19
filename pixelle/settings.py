@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     chainlit_auth_enabled: bool = True
     chainlit_save_starter_enabled: bool = False
     
+    # CDN configuration
+    # Options: "auto" (detect by language), "china" (always use China CDN), "global" (always use global CDN)
+    cdn_strategy: str = "auto"
+    
     # LLM model configuration
     # OpenAI
     openai_base_url: str = "https://api.openai.com/v1"

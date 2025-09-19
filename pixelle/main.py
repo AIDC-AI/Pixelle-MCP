@@ -15,7 +15,7 @@ from pixelle.utils.os_util import get_src_path
 from pixelle.utils.openapi_util import create_custom_openapi_function
 from pixelle.mcp_core import mcp
 from pixelle.api.files_api import router as files_router
-from pixelle.middleware import StaticCacheMiddleware
+from pixelle.middleware import StaticCacheMiddleware, HTMLCDNReplaceMiddleware
 
 
 # Modify chainlit config
@@ -56,6 +56,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add HTML CDN replace middleware to fix slow CDN loading in China
+# Problem: Chainlit uses jsdelivr.net CDN for KaTeX and fonts.googleapis.com for fonts, which are slow or blocked in China
+# Solution: This middleware intercepts HTML responses and replaces CDN prefixes with China-accessible mirrors
+app.add_middleware(HTMLCDNReplaceMiddleware)
 
 # Add static cache middleware to fix Chainlit's HTTP caching issues
 # Problem: Chainlit/Uvicorn doesn't properly handle conditional HTTP requests (If-None-Match, If-Modified-Since)
