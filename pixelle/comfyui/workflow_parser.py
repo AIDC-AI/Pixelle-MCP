@@ -73,12 +73,12 @@ class WorkflowParser:
     
     def infer_type_from_value(self, value: Any) -> str:
         """Infer type from value"""
-        if isinstance(value, int):
+        if isinstance(value, bool):
+            return "bool"
+        elif isinstance(value, int):
             return "int"
         elif isinstance(value, float):
             return "float"
-        elif isinstance(value, bool):
-            return "bool"
         else:
             return "str"
     
