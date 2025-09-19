@@ -1,6 +1,6 @@
 [project]
 name = "pixelle"
-version = "0.1.12"
+version = "0.1.13"
 description = "Pixelle MCP: Convert ComfyUI workflows into MCP Tools with a single command, providing an MCP server and a Chainlit-based web UI."
 readme = "README.md"
 requires-python = ">=3.11"
