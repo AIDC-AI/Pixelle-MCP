@@ -27,16 +27,22 @@ chainlit_entry_file = get_src_path("web/app.py")
 # Load chainlit module
 load_module(chainlit_entry_file)
 
-# Create ASGI app of MCP
-mcp_app = mcp.http_app(path='/mcp')
+# Create ASGI app of MCP (only in non-demo mode)
+if not settings.demo_mode:
+    mcp_app = mcp.http_app(path='/mcp')
 
 
 # combine multi lifespans
 @asynccontextmanager
 async def combined_lifespan(app: FastAPI):
-    # start MCP lifespan
-    async with mcp_app.lifespan(app):
-        # start chainlit lifespan
+    if not settings.demo_mode:
+        # start MCP lifespan
+        async with mcp_app.lifespan(app):
+            # start chainlit lifespan
+            async with chainlit_lifespan(app):
+                yield
+    else:
+        # demo mode: only chainlit lifespan
         async with chainlit_lifespan(app):
             yield
 
@@ -80,8 +86,9 @@ from pixelle.tools import workflow_manager_tool
 # Register files router
 app.include_router(files_router, prefix="/files")
 
-# Mount MCP server to `/pixelle` path
-app.mount("/pixelle", mcp_app)
+# Mount MCP server to `/pixelle` path (only in non-demo mode)
+if not settings.demo_mode:
+    app.mount("/pixelle", mcp_app)
 
 # Transfer all middleware into our app
 for middleware in chainlit_app.user_middleware:

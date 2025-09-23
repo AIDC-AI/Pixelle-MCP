@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     # Options: "auto" (detect by language), "china" (always use China CDN), "global" (always use global CDN)
     cdn_strategy: str = "auto"
     
+    # Demo mode configuration
+    demo_mode: bool = True
+    
     # LLM model configuration
     # OpenAI
     openai_base_url: str = "https://api.openai.com/v1"

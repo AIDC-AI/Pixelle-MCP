@@ -91,8 +91,8 @@ logger.info(f"QWEN_API_KEY: {QWEN_API_KEY}")
 logger.info(f"Found {len(qwen_models)} Qwen models: {qwen_models}")
 
 
-# At least one model should be configured
-if not any([
+# At least one model should be configured (skip check in demo mode)
+if not settings.demo_mode and not any([
     openai_models,
     ollama_models,
     gemini_models,

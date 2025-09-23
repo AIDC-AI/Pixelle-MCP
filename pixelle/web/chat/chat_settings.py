@@ -7,10 +7,15 @@ from chainlit.input_widget import Select, Switch, Slider, TextInput, Tags
 
 from pixelle.logger import logger
 from pixelle.web.core.prompt import DEFAULT_SYSTEM_PROMPT
+from pixelle.settings import settings as app_settings
 
 
 async def setup_chat_settings():
     # Documentation: https://docs.chainlit.io/api-reference/chat-settings#usage
+    
+    # In demo mode, don't show any settings
+    if app_settings.demo_mode:
+        return
     
     settings = await cl.ChatSettings(
         [

@@ -73,28 +73,10 @@ async def on_message(message: cl.Message):
     if is_handled:
         return
     
-    need_update = False
-    for element in message.elements:
-        is_media = isinstance(element, cl.Image) \
-            or isinstance(element, cl.Audio) \
-            or isinstance(element, cl.Video)
-        if is_media and element.path and not element.url:
-            element.size = "small"
-            element.url = upload(element.path, filename=element.name)
-            need_update = True
-    if need_update:
-        await message.update()
-    
-    cl_messages = cl.chat_context.get()
-    messages = messages_from_chaintlit_to_openai(cl_messages)
-    
-    # Use tool processor to process streaming response and tool calls
-    chat_profile = cl.user_session.get("chat_profile")
-    model_info = llm_util.get_model_info_by_name(chat_profile)
-    await tool_handler.process_streaming_response(
-        messages=messages,
-        model_info=model_info,
-    )
+    # Demo mode: return prompt for non-starter messages
+    await cl.Message(
+        content="The current scene does not support dialogue.",
+    ).send()
 
 
 if __name__ == "__main__":

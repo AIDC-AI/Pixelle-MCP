@@ -36,7 +36,7 @@ reaction_on_message_received = false
 
 # Authorize users to spontaneously upload files with messages
 [features.spontaneous_file_upload]
-    enabled = true
+    enabled = false
     # Define accepted file types using MIME types
     # Examples:
     # 1. For specific file types:
@@ -58,16 +58,16 @@ reaction_on_message_received = false
 
 [features.mcp]
     # Enable Model Context Protocol (MCP) features
-    enabled = true
+    enabled = false
 
 [features.mcp.sse]
-    enabled = true
+    enabled = false
 
 [features.mcp.streamable-http]
-    enabled = true
+    enabled = false
 
 [features.mcp.stdio]
-    enabled = true
+    enabled = false
     # Only the executables in the allow list can be used for MCP stdio server.
     # Only need the base name of the executable, e.g. "npx", not "/usr/bin/npx".
     # Please don't comment this line for now, we need it to parse the executable name.
