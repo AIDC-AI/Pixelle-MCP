@@ -52,17 +52,11 @@ class StarterModel(BaseModel):
 # Typing effect disabled - direct output mode
 
 # File operation related functions
-SYSTEM_STARTERS_DIR = Path(get_src_path("starters"))
 CUSTOM_STARTERS_DIR = Path(get_data_path("custom_starters"))
 
 def ensure_starters_dirs():
     """Ensure that the system and user starters directories exist"""
-    SYSTEM_STARTERS_DIR.mkdir(parents=True, exist_ok=True)
     CUSTOM_STARTERS_DIR.mkdir(parents=True, exist_ok=True)
-
-def get_system_starters_dir() -> Path:
-    """Get the system preset starter directory"""
-    return SYSTEM_STARTERS_DIR
 
 def get_custom_starters_dir() -> Path:
     """Get the user custom starter directory"""
@@ -126,21 +120,6 @@ def load_custom_starter(starter_file: Path) -> Optional[StarterModel]:
         print(f"Error loading starter from {starter_file}: {e}")
         return None
 
-def load_system_starters() -> List[StarterModel]:
-    """Load the system preset starters"""
-    ensure_starters_dirs()
-    system_starters = []
-    
-    for starter_file in SYSTEM_STARTERS_DIR.glob("*.json"):
-        starter = load_custom_starter(starter_file)
-        if starter and starter.enabled:  # Only load the enabled starters
-            system_starters.append(starter)
-    
-    # Sort by the order field
-    system_starters.sort(key=lambda x: x.order)
-    
-    return system_starters
-
 def load_custom_starters() -> List[StarterModel]:
     """Load the user custom starters"""
     ensure_starters_dirs()
@@ -158,11 +137,7 @@ def load_custom_starters() -> List[StarterModel]:
 
 def get_all_starters() -> List[StarterModel]:
     """Get all enabled starters, system preset first, user custom later"""
-    system_starters = load_system_starters()
-    custom_starters = load_custom_starters()
-    
-    # System preset first, user custom later
-    return system_starters + custom_starters
+    return load_custom_starters()
 
 def convert_message_to_dict(message: cl.Message) -> Dict[str, Any]:
     """Convert cl.Message to dictionary format"""
