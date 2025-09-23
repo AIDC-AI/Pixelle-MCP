@@ -49,17 +49,7 @@ class StarterModel(BaseModel):
             icon=self.icon,
         )
 
-# Typing effect configuration
-TYPING_EFFECT_CONFIG = {
-    "user_message": {
-        "delay_per_char": 0.05,
-        "max_total_duration": 1.0
-    },
-    "assistant_message": {
-        "delay_per_char": 0.02,
-        "max_total_duration": 2.0
-    }
-}
+# Typing effect disabled - direct output mode
 
 # File operation related functions
 SYSTEM_STARTERS_DIR = Path(get_src_path("starters"))
@@ -452,44 +442,16 @@ async def handle_step_item(item: Dict[str, Any]) -> None:
     
     async with cl.Step(name=step_name) as step:
         step.input = step_input
-        
-        delay = random.uniform(1.0, 3.0)
-        await asyncio.sleep(delay)
-        
         step.output = step_output
 
-async def stream_content_with_typing_effect(content: str, delay_per_char: float = 0.02, message_type: str = "assistant_message", max_total_duration: float = 3.0) -> cl.Message:
-    """Use typing effect to stream output content
+async def send_message_directly(content: str, message_type: str = "assistant_message") -> cl.Message:
+    """Send message content directly without typing effect
     
     Args:
         content: The content to output
-        delay_per_char: The delay time per character (seconds)
         message_type: The message type
-        max_total_duration: The maximum total duration (seconds), the output will be accelerated if it exceeds this time
     """
-    if not content:
-        message = cl.Message(content="", type=message_type)
-        await message.send()
-        return message
-    
-    # Create an empty message, specify the message type
-    message = cl.Message(content="", type=message_type)
-    
-    # Calculate the theoretical total duration
-    theoretical_duration = len(content) * delay_per_char
-    
-    # If the theoretical duration exceeds the maximum duration, adjust the delay
-    if theoretical_duration > max_total_duration:
-        adjusted_delay = max_total_duration / len(content)
-    else:
-        adjusted_delay = delay_per_char
-    
-    # Stream output character by character
-    for char in content:
-        await message.stream_token(char)
-        await asyncio.sleep(adjusted_delay)
-    
-    # Complete the streaming output
+    message = cl.Message(content=content, type=message_type)
     await message.send()
     return message
 
@@ -512,25 +474,13 @@ async def handle_message_item(item: Dict[str, Any], role: str) -> None:
         elif elem_type == "audio" and elem_url:
             elements.append(cl.Audio(url=elem_url, size=elem_size))
     
-    # user and ai messages use typing effect
+    # Send messages directly without typing effect
     if role == "user":
-        # User message - use typing effect
-        config = TYPING_EFFECT_CONFIG["user_message"]
-        message = await stream_content_with_typing_effect(
-            content, 
-            delay_per_char=config["delay_per_char"], 
-            message_type="user_message", 
-            max_total_duration=config["max_total_duration"]
-        )
+        # User message - direct output
+        message = await send_message_directly(content, message_type="user_message")
     else:
-        # AI assistant message - use typing effect
-        config = TYPING_EFFECT_CONFIG["assistant_message"]
-        message = await stream_content_with_typing_effect(
-            content, 
-            delay_per_char=config["delay_per_char"], 
-            message_type="assistant_message", 
-            max_total_duration=config["max_total_duration"]
-        )
+        # AI assistant message - direct output
+        message = await send_message_directly(content, message_type="assistant_message")
     
     # After the content output is completed, add elements at once
     if elements:
