@@ -15,7 +15,7 @@ from pixelle.utils.os_util import get_src_path
 from pixelle.utils.openapi_util import create_custom_openapi_function
 from pixelle.mcp_core import mcp
 from pixelle.api.files_api import router as files_router
-from pixelle.middleware import StaticCacheMiddleware, HTMLCDNReplaceMiddleware
+from pixelle.middleware import StaticCacheMiddleware, HTMLCDNReplaceMiddleware, AppJsMiddleware
 
 
 # Modify chainlit config
@@ -62,16 +62,21 @@ app.add_middleware(
 # Solution: This middleware intercepts HTML responses and replaces CDN prefixes with China-accessible mirrors
 app.add_middleware(HTMLCDNReplaceMiddleware)
 
+# Add app.js middleware to always serve fresh content (for development)
+app.add_middleware(AppJsMiddleware)
+
 # Add static cache middleware to fix Chainlit's HTTP caching issues
 # Problem: Chainlit/Uvicorn doesn't properly handle conditional HTTP requests (If-None-Match, If-Modified-Since)
 # causing browsers to re-download large JS files even when they haven't changed, leading to slow performance
 # after the server runs for a while.
 # Solution: This middleware intercepts static file requests and implements proper HTTP caching protocol.
+# Add static cache middleware for hashed static files (long cache)
 app.add_middleware(
     StaticCacheMiddleware,
     static_paths=['/assets/', '/static/', '/_next/static/'],
     max_age=31536000,  # 1 year cache - files have content hashes in names, safe for long cache
 )
+
 
 # Load tools modules manually (avoid loading residual files from old installations)
 from pixelle.tools import i_crop

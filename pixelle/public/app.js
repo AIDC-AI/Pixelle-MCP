@@ -5,6 +5,7 @@
 
 // Define base service address constant
 const MCP_SERVER_BASE_URL = "http://localhost:9004";
+console.log("MCP_SERVER_BASE_URL", MCP_SERVER_BASE_URL);
 
 function initMcp() {
     const mcpStorgeStr = localStorage.getItem("mcp_storage_key");
@@ -15,6 +16,15 @@ function initMcp() {
         try {
             const mcpStorge = JSON.parse(mcpStorgeStr);
             needInit = !mcpStorge || mcpStorge.length === 0;
+            
+            // Compatibility: force reinit when migrating from Docker to pixelle.ai
+            if (!needInit && window.location.hostname === 'pixelle.ai') {
+                const hasDockerInternalConfig = mcpStorgeStr.includes('host.docker.internal');
+                if (hasDockerInternalConfig) {
+                    console.log("Detected Docker internal config on pixelle.ai, forcing MCP reinit");
+                    needInit = true;
+                }
+            }
         } catch (error) {
             needInit = true;
         }
