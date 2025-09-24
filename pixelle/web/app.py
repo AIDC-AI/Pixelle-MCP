@@ -11,6 +11,7 @@ import pixelle.web.chat.starters as starters
 from pixelle.logger import logger
 from pixelle.web.core.prompt import DEFAULT_SYSTEM_PROMPT
 from pixelle.web.converters.tool_converter import tools_from_chaintlit_to_openai
+from pixelle.utils.user_settings_util import get_system_prompt
 from pixelle.web.chat.chat_handler import handle_mcp_connect, handle_mcp_disconnect
 from pixelle.web.chat.chat_settings import setup_chat_settings, setup_settings_update
 from pixelle.web.chat import chat_handler as tool_handler
@@ -37,9 +38,10 @@ async def start():
     """Initialize chat session"""
     await setup_chat_settings()
     
-    # Get system prompt from settings, if not exists, use default value
+    # Get system prompt from file first, then from settings, finally use default value
+    saved_system_prompt = get_system_prompt()
     settings = cl.user_session.get("settings", {})
-    system_prompt = settings.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
+    system_prompt = saved_system_prompt or settings.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
     
     sys_message = cl.Message(
         type="system_message",
