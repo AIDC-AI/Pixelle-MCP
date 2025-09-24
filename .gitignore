@@ -31,4 +31,6 @@ data/
 .env*
 dist/
 
+# Cursor
 .cursorrules
+.cursorignore
