@@ -5,6 +5,8 @@ from datetime import datetime
 import os
 import time
 import re
+import json
+import tempfile
 from pathlib import Path
 from typing import Dict, Any, Optional
 from pydantic import Field
@@ -13,6 +15,7 @@ from pixelle.mcp_core import mcp
 from pixelle.utils.os_util import get_data_path
 from pixelle.comfyui.workflow_parser import WorkflowParser, WorkflowMetadata
 from pixelle.comfyui.facade import execute_workflow
+from pixelle.utils.runninghub_util import is_runninghub_workflow, fetch_runninghub_workflow_metadata
 
 CUSTOM_WORKFLOW_DIR = get_data_path("custom_workflows")
 os.makedirs(CUSTOM_WORKFLOW_DIR, exist_ok=True)
@@ -27,9 +30,33 @@ class WorkflowManager:
     
     def parse_workflow_metadata(self, workflow_path: Path, tool_name: str = None) -> Optional[WorkflowMetadata]:
         """Parse workflow metadata using new workflow parser"""
-        parser = WorkflowParser()
-        metadata = parser.parse_workflow_file(str(workflow_path), tool_name)
-        return metadata
+        try:
+            # Check if this is a RunningHub workflow file
+            if is_runninghub_workflow(workflow_path):
+                # Import asyncio for running async function
+                import asyncio
+
+                tool_name = tool_name or workflow_path.stem
+                # Run the async function
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're already in an async context, create a new task
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(asyncio.run, fetch_runninghub_workflow_metadata(workflow_path, tool_name))
+                        return future.result()
+                except RuntimeError:
+                    # No running loop, we can use asyncio.run
+                    return asyncio.run(fetch_runninghub_workflow_metadata(workflow_path, tool_name))
+            else:
+                # Standard ComfyUI workflow
+                parser = WorkflowParser()
+                metadata = parser.parse_workflow_file(str(workflow_path), tool_name)
+                return metadata
+        except Exception as e:
+            logger.error(f"Failed to parse workflow metadata for {workflow_path}: {e}")
+            return None
+    
     
     def _generate_params_str(self, params: Dict[str, Any]) -> str:
         """Generate function parameter string"""

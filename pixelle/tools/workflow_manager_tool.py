@@ -5,6 +5,8 @@ import json
 import keyword
 import re
 import os
+import tempfile
+from urllib.parse import urlparse
 from pydantic import Field
 
 from pixelle.logger import logger
@@ -12,12 +14,13 @@ from pixelle.mcp_core import mcp
 from pixelle.manager.workflow_manager import workflow_manager, CUSTOM_WORKFLOW_DIR
 from pixelle.utils.file_util import download_files
 from pixelle.utils.file_uploader import upload
+from pixelle.utils.runninghub_util import handle_runninghub_workflow_save
 
 
 @mcp.tool(name="save_workflow_tool")
 async def save_workflow_tool(
-    workflow_url: str = Field(description="The workflow to save, must be a URL"),
-    uploaded_filename: str = Field(description="Use the name of the uploaded file or a name specified by the user. Must be in English and without a file extension."),
+    workflow_source: str = Field(description="The workflow to save. Can be a URL for downloading a workflow file, or a RunningHub workflow_id (starts with numbers) for fetching from RunningHub"),
+    tool_name: str = Field(default="", description="The name for the MCP tool. Priority: 1) User-specified name (if provided), 2) For URL: use uploaded filename, 3) For RunningHub: must ask user to provide a specific tool name. Must be in English, without file extension, and follow pattern: start with letter/underscore, contain only letters/digits/underscores."),
 ):
     """
     Add or update a workflow in MCP tools.
@@ -28,6 +31,10 @@ async def save_workflow_tool(
     - update or overwrite an existing workflow / tool
     - store or register a workflow
     - keep or preserve a workflow for later use
+
+    The workflow_source parameter supports two formats:
+    1. HTTP/HTTPS URL: Downloads the workflow file from the URL
+    2. RunningHub workflow_id: Fetches the workflow from RunningHub using the API
 
     Common phrasings include:
     "add this tool", "add this workflow", "save this workflow",
@@ -40,22 +47,46 @@ async def save_workflow_tool(
         # Valid format: starts with a letter or underscore, followed by letters, digits, or underscores
         pattern = r'^[A-Za-z_][A-Za-z0-9_]*$'
         
-        if not re.match(pattern, uploaded_filename):
+        if not re.match(pattern, tool_name):
             return error(
-                "The uploaded filename format is invalid: only letters, digits, and underscores are allowed, and it must start with a letter or underscore."
+                "The tool_name format is invalid: only letters, digits, and underscores are allowed, and it must start with a letter or underscore."
             )
         
-        if keyword.iskeyword(uploaded_filename):
+        if keyword.iskeyword(tool_name):
             return error(
-                f"The uploaded filename cannot be a Python keyword: '{uploaded_filename}'."
+                f"The tool_name cannot be a Python keyword: '{tool_name}'."
             )
 
-        async with download_files(workflow_url) as temp_workflow_path:
-            return workflow_manager.load_workflow(temp_workflow_path, tool_name=uploaded_filename)
+        # Determine if workflow_source is URL or RunningHub workflow_id
+        if _is_url(workflow_source):
+            # Handle URL - use existing download logic
+            logger.info(f"Processing workflow from URL: {workflow_source}")
+            async with download_files(workflow_source) as temp_workflow_path:
+                return workflow_manager.load_workflow(temp_workflow_path, tool_name=tool_name)
+        else:
+            # Handle RunningHub workflow_id
+            logger.info(f"Processing workflow from RunningHub workflow_id: {workflow_source}")
+            result = await handle_runninghub_workflow_save(workflow_source, tool_name)
+            if not result["success"]:
+                return error(result["error"])
+            
+            # Load the workflow using the created file
+            return workflow_manager.load_workflow(result["workflow_file_path"], tool_name=tool_name)
             
     except Exception as e:
-        logger.error(f"Failed to save workflow: {e}")
+        logger.error(f"Failed to save workflow: {e}", exc_info=True)
         return error(f"Failed to save workflow: {str(e)}")
+
+
+def _is_url(source: str) -> bool:
+    """Check if the source is a valid URL"""
+    try:
+        parsed = urlparse(source)
+        return parsed.scheme in ['http', 'https'] and parsed.netloc
+    except Exception:
+        return False
+
+
         
 @mcp.tool(name="reload_workflows_tool")
 async def reload_workflows_tool():

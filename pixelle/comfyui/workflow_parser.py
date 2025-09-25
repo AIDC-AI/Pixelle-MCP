@@ -39,6 +39,8 @@ class WorkflowMetadata(BaseModel):
     description: Optional[str] = None
     params: Dict[str, WorkflowParam]
     mapping_info: WorkflowMappingInfo
+    workflow_id: Optional[str] = None  # RunningHub workflow ID
+    is_runninghub: bool = False  # Whether this is a RunningHub workflow
 
 class WorkflowParser:
     """Workflow parser"""

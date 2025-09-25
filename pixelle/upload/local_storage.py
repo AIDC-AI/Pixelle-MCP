@@ -8,13 +8,13 @@ from typing import BinaryIO, Optional
 
 from pixelle.upload.base import StorageBackend, FileInfo
 from pixelle.settings import settings
-from pixelle.utils import os_util
+from pixelle.utils.os_util import get_data_path
 
 
 class LocalStorage(StorageBackend):
 
     def __init__(self, read_url: Optional[str] = None):
-        self.storage_path = Path(os_util.get_data_path(settings.local_storage_path))
+        self.storage_path = Path(get_data_path(settings.local_storage_path))
         self.read_url = read_url or settings.get_read_url()
         
         self.storage_path.mkdir(parents=True, exist_ok=True)

@@ -10,12 +10,12 @@ import uuid
 
 from pixelle.logger import logger
 from pixelle.settings import settings
-from pixelle.utils import os_util
+from pixelle.utils.os_util import get_data_path
 
 class LocalFileUploader:
     
     def __init__(self):
-        self.storage_path = Path(os_util.get_data_path(settings.local_storage_path))
+        self.storage_path = Path(get_data_path(settings.local_storage_path))
         self.storage_path.mkdir(parents=True, exist_ok=True)
     
     def upload(self, data: Union[bytes, str, Path], filename: Optional[str] = None) -> str:

@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     comfyui_cookies: str = ""
     comfyui_executor_type: str = "http"
     
+    # RunningHub configuration
+    runninghub_api_key: str = ""
+    runninghub_base_url: str = "https://www.runninghub.cn"
+    runninghub_timeout: int = 3600
+    runninghub_retry_count: int = 0
+    
     # Chainlit configuration
     chainlit_auth_secret: str = "changeme-generate-a-secure-secret-key"
     chainlit_auth_enabled: bool = True
