@@ -38,6 +38,7 @@ Pixelle MCP 采用**统一架构设计**，将MCP服务端、Web界面和文件�
 
 ![](docs/%20mcp_structure.png)
 
+<div id="tutorial-start" />
 
 ## 🏃‍♂️ 快速开始
 
@@ -50,6 +51,7 @@ Pixelle MCP 采用**统一架构设计**，将MCP服务端、Web界面和文件�
 #### 🚀 临时运行
 
 ```bash
+# 首先需要安装uv环境
 # 一条命令启动，无需安装到系统
 uvx pixelle@latest
 ```
@@ -59,7 +61,7 @@ uvx pixelle@latest
 #### 📦 持久安装
 
 ```bash
-# 安装到系统
+# 这里需要在python3.11的环境中进行安装
 pip install -U pixelle
 
 # 启动服务
@@ -258,6 +260,7 @@ $<参数名>.[~]<字段名>[!][:<描述信息>]
 4. **📋 描述详细**：尽量在参数描述中提供详细说明，提升用户体验
 5. **🎯 导出格式**：必须导出为 API 格式，不要导出 UI 格式
 
+<div id="tutorial-end" />
 
 ## 💬 社区交流
 

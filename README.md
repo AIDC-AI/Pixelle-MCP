@@ -38,6 +38,7 @@ Pixelle MCP adopts a **unified architecture design**, integrating MCP server, we
 
 ![](docs/%20mcp_structure.png)
 
+<div id="tutorial-start" />
 
 ## 🏃‍♂️ Quick Start
 
@@ -50,6 +51,7 @@ Choose the deployment method that best suits your needs, from simple to complex:
 #### 🚀 Temporary Run
 
 ```bash
+# First you need to install the uv environment
 # Start with one command, no system installation required
 uvx pixelle@latest
 ```
@@ -59,6 +61,7 @@ uvx pixelle@latest
 #### 📦 Persistent Installation
 
 ```bash
+# Here you need to install it in the python3.11 environment
 # Install to system
 pip install -U pixelle
 
@@ -258,7 +261,8 @@ You can add a node titled `MCP` in the workflow to provide a tool description:
 4. **📋 Detailed Descriptions**: Provide detailed parameter descriptions for better user experience
 5. **🎯 Export Format**: Must export as API format, do not export as UI format
 
-
+<div id="tutorial-end" />
+ 
 ## 💬 Community
 
 Scan the QR codes below to join our communities for latest updates and technical support:
