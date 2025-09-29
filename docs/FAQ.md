@@ -35,21 +35,7 @@ Pixelle MCP provides three main installation methods:
 4. Submit the workflow file in the Web interface and say: "Add Tool", LLM will automatically convert it to MCP tool
 5. Refresh the page to use it
 
-### What is the syntax for workflow parameter definition?
-
-Use DSL syntax: `$<parameter_name>.[~]<field_name>[!][:<description>]`
-
-- `parameter_name`: Parameter name for the generated MCP tool function
-- `~`: Optional, indicates URL parameter upload processing
-- `field_name`: Corresponding input field name in the node
-- `!`: Indicates this parameter is required
-- `description`: Parameter description
-
-**Examples**:
-- `$image.image!:Input image URL` - Required parameter
-- `$width.width:Image width, default 512` - Optional parameter
-
-### Which output nodes are supported?
+### Which output nodes are supported for workflow?
 
 The system automatically recognizes the following output nodes:
 - `SaveImage` - Image save node
