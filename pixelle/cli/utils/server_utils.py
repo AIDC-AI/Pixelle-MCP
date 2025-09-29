@@ -212,14 +212,37 @@ def check_service_status():
         "Chat interface" if web_status else "Please start the service first"
     )
     
-    # Check ComfyUI
-    comfyui_status = test_comfyui_connection(settings.comfyui_base_url)
-    status_table.add_row(
-        "ComfyUI",
-        settings.comfyui_base_url,
-        "🟢 Connected" if comfyui_status else "🔴 Connection failed",
-        "Workflow execution engine" if comfyui_status else "Please check if ComfyUI is running"
-    )
+    # Check execution engines
+    engines_checked = 0
+    engines_working = 0
+    
+    # Check ComfyUI if configured
+    if hasattr(settings, 'comfyui_base_url') and settings.comfyui_base_url:
+        engines_checked += 1
+        comfyui_status = test_comfyui_connection(settings.comfyui_base_url)
+        if comfyui_status:
+            engines_working += 1
+        status_table.add_row(
+            "ComfyUI (Local)",
+            settings.comfyui_base_url,
+            "🟢 Connected" if comfyui_status else "🔴 Connection failed",
+            "Local workflow execution" if comfyui_status else "Please check if ComfyUI is running"
+        )
+    
+    # Check RunningHub if configured
+    if hasattr(settings, 'runninghub_api_key') and settings.runninghub_api_key:
+        engines_checked += 1
+        # For RunningHub, we just check if API key is configured
+        # Actual connectivity would require an API call
+        runninghub_status = True  # Assume configured means working
+        if runninghub_status:
+            engines_working += 1
+        status_table.add_row(
+            "RunningHub (Cloud)",
+            "Cloud API",
+            "🟢 Configured" if runninghub_status else "🔴 Not configured",
+            "Cloud workflow execution" if runninghub_status else "Please configure RunningHub API key"
+        )
     
     console.print(status_table)
     
@@ -234,11 +257,15 @@ def check_service_status():
         console.print("\n⚠️  [bold yellow]Warning:[/bold yellow] No LLM providers configured")
     
     # Summary
-    total_services = 3  # MCP, Web, ComfyUI
-    running_services = sum([mcp_status, web_status, comfyui_status])
+    core_services = 2  # MCP, Web
+    total_services = core_services + engines_checked
+    running_services = sum([mcp_status, web_status]) + engines_working
     
     if running_services == total_services:
         console.print("\n✅ [bold green]All services are running normally![/bold green]")
     else:
         console.print(f"\n⚠️  [bold yellow]{running_services}/{total_services} services are running normally[/bold yellow]")
-        console.print("💡 If any service is not running, please check the configuration or restart the service")
+        if engines_checked == 0:
+            console.print("⚠️  [bold yellow]No execution engines configured! Please run [cyan]pixelle init[/cyan] to configure ComfyUI or RunningHub[/bold yellow]")
+        else:
+            console.print("💡 If any service is not running, please check the configuration or restart the service")

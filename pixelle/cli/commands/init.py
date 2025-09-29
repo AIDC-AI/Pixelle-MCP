@@ -6,7 +6,7 @@
 import typer
 from rich.console import Console
 
-from pixelle.cli.setup.comfyui import setup_comfyui
+from pixelle.cli.setup.execution_engines import setup_execution_engines_interactive
 from pixelle.cli.setup.service import setup_service_config
 from pixelle.cli.setup.config_saver import save_unified_config
 from pixelle.cli.setup.providers.manager import (
@@ -28,13 +28,10 @@ def init_command():
     console.print("\n🔄 [bold]Running configuration wizard...[/bold]")
     
     try:
-        # Step 1: ComfyUI config
-        comfyui_config = setup_comfyui()
-        if comfyui_config is None:  # User cancelled (questionary returns None on Ctrl+C)
+        # Step 1: Execution engines config (ComfyUI and/or RunningHub)
+        runninghub_config, comfyui_config = setup_execution_engines_interactive()
+        if runninghub_config is None and comfyui_config is None:  # User cancelled
             raise KeyboardInterrupt()
-        if not comfyui_config:  # Empty config
-            console.print("⚠️  ComfyUI config skipped, using default config")
-            comfyui_config = {"url": "http://localhost:8188"}  # Use default value
         
         # Step 2: LLM config (can be configured multiple)
         llm_configs = setup_multiple_llm_providers()
@@ -59,7 +56,7 @@ def init_command():
             service_config = {"port": "9004", "host": "localhost"}  # Use default value
         
         # Step 5: Save config
-        save_unified_config(comfyui_config, llm_configs, service_config, selected_default_model)
+        save_unified_config(comfyui_config, runninghub_config, llm_configs, service_config, selected_default_model)
         
         console.print("\n✅ [bold green]Configuration completed![/bold green]")
         console.print("💡 Run [bold]pixelle start[/bold] to start the server")

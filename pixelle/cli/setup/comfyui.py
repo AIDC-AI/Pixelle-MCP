@@ -35,6 +35,10 @@ def setup_comfyui(default_url: str = None) -> Optional[Dict]:
         instruction="(press Enter to use default, or input custom address)"
     ).ask()
     
+    # Handle user cancellation (Ctrl+C)
+    if url is None:
+        raise KeyboardInterrupt("User cancelled ComfyUI address input")
+    
     if not url:  # User entered empty string
         return None
     url = url.strip().rstrip('/')
@@ -46,6 +50,10 @@ def setup_comfyui(default_url: str = None) -> Optional[Dict]:
         "ComfyUI API Key (optional, for ComfyUI API Nodes):",
         instruction="(Leave empty if not using API Nodes)"
     ).ask()
+    
+    # Handle user cancellation (Ctrl+C)
+    if api_key is None:
+        raise KeyboardInterrupt("User cancelled ComfyUI API key input")
     
     config = {"url": url}
     if api_key:

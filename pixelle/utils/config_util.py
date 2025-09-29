@@ -33,17 +33,27 @@ def has_minimal_llm_config(env_vars: Dict[str, str]) -> bool:
     return any(k in env_vars and bool(env_vars.get(k)) for k in llm_keys)
 
 
+def has_minimal_execution_engine_config(env_vars: Dict[str, str]) -> bool:
+    """Return True if at least one execution engine (ComfyUI or RunningHub) is configured."""
+    has_comfyui = "COMFYUI_BASE_URL" in env_vars and bool(env_vars.get("COMFYUI_BASE_URL"))
+    has_runninghub = "RUNNINGHUB_API_KEY" in env_vars and bool(env_vars.get("RUNNINGHUB_API_KEY"))
+    return has_comfyui or has_runninghub
+
+
 def detect_config_status_from_env(env_vars: Dict[str, str]) -> str:
     """Compute config status: 'first_time'|'incomplete'|'complete'."""
-    if "COMFYUI_BASE_URL" not in env_vars or not env_vars.get("COMFYUI_BASE_URL"):
+    # At least one execution engine must be configured
+    if not has_minimal_execution_engine_config(env_vars):
         return "incomplete"
+    # At least one LLM provider must be configured
     if not has_minimal_llm_config(env_vars):
         return "incomplete"
     return "complete"
 
 
 def build_env_lines(
-    comfyui_config: Dict,
+    comfyui_config: Optional[Dict],
+    runninghub_config: Optional[Dict],
     llm_configs: List[Dict],
     service_config: Dict,
     default_model: Optional[str] = None,
@@ -62,25 +72,68 @@ def build_env_lines(
         "# configure when service is not on local machine",
         f"PUBLIC_READ_URL=\"{service_config.get('public_read_url', '')}\"",
         "",
+    ]
+    
+    # Prepare ComfyUI configuration values (always included)
+    if comfyui_config:
+        comfyui_url = comfyui_config['url']
+        comfyui_api_key = comfyui_config.get('api_key', '')
+    else:
+        comfyui_url = "http://localhost:8188"
+        comfyui_api_key = ""
+    
+    # Prepare RunningHub configuration values (always included)  
+    if runninghub_config:
+        runninghub_base_url = runninghub_config['base_url']
+        runninghub_api_key = runninghub_config['api_key']
+    else:
+        runninghub_base_url = "https://www.runninghub.ai"
+        runninghub_api_key = ""
+    
+    # Add execution engine configurations
+    env_lines.extend([
         "# ======== ComfyUI Integration Configuration ========",
         "# ComfyUI service address",
-        f"COMFYUI_BASE_URL={comfyui_config['url']}",
+        f"COMFYUI_BASE_URL={comfyui_url}",
         "# ComfyUI API Key (required if API Nodes are used in workflows,",
         "# get it from: https://platform.comfy.org/profile/api-keys)",
-        f"COMFYUI_API_KEY=\"{comfyui_config.get('api_key', '')}\"",
+        f"COMFYUI_API_KEY=\"{comfyui_api_key}\"",
         "# Cookies used when calling ComfyUI interface, configure if ComfyUI service requires authentication",
         "COMFYUI_COOKIES=\"\"",
         "# Executor type for calling ComfyUI interface, supports websocket and http (both are generally supported)",
         "COMFYUI_EXECUTOR_TYPE=http",
         "",
+        "# ======== RunningHub Cloud Configuration ========",
+        "# RunningHub cloud execution engine configuration",
+        "# API base URL for RunningHub service",
+        "# Global: https://www.runninghub.ai (for international users)",
+        "# China: https://www.runninghub.cn (recommended for Chinese users)",
+        f"RUNNINGHUB_BASE_URL=\"{runninghub_base_url}\"",
+        "# RunningHub API Key",
+        "# Global users get key from: https://www.runninghub.ai",
+        "# China users get key from: https://www.runninghub.cn",
+        f"RUNNINGHUB_API_KEY=\"{runninghub_api_key}\"",
+        "",
+    ])
+    
+    env_lines.extend([
         "# ======== Chainlit Framework Configuration ========",
         "# Chainlit auth secret (used for chainlit auth, can be reused or randomly generated)",
         "CHAINLIT_AUTH_SECRET=\"changeme-generate-a-secure-secret-key\"",
         f"CHAINLIT_AUTH_ENABLED=true",
         "CHAINLIT_SAVE_STARTER_ENABLED=false",
         "",
+        "# ======== CDN Configuration ========",
+        "# CDN strategy for loading external resources (KaTeX, Google Fonts, etc.)",
+        "# Options:",
+        '#   - "auto": Automatically detect user language (Chinese users get China CDN, others get global CDN)',
+        '#   - "china": Force all users to use China CDN mirrors (faster for Chinese users)',
+        '#   - "global": Force all users to use original global CDNs (faster for international users)',
+        "# Default: \"auto\"",
+        "CDN_STRATEGY=auto",
+        "",
         "# ======== LLM Model Configuration ========",
-    ]
+    ])
 
     for llm_config in llm_configs:
         provider = llm_config["provider"].upper()

@@ -30,7 +30,9 @@ def workflow_command():
 
 
 @workflow_app.command("list")
-def list_workflows():
+def list_workflows(
+    source: Optional[str] = typer.Option(None, "--source", "-s", help="Filter by workflow source: 'local', 'runninghub', or 'all'")
+):
     """📋 Display all current workflow files and tools information"""
     
     # Show header information
@@ -64,20 +66,29 @@ def list_workflows():
     # Loaded Tools Details Table
     if loaded_workflows:
         loaded_table = Table(title="⚡ Currently Loaded MCP Tools", show_header=True, header_style="bold blue")
-        loaded_table.add_column("Tool Name", style="cyan", width=18)
-        loaded_table.add_column("Parameters", style="yellow", width=22)
-        loaded_table.add_column("Description", style="white", width=30)
-        loaded_table.add_column("Created", style="green", width=18)
-        loaded_table.add_column("Modified", style="blue", width=18)
+        loaded_table.add_column("Tool Name", style="cyan", width=16)
+        loaded_table.add_column("Source", style="magenta", width=10)
+        loaded_table.add_column("Parameters", style="yellow", width=20)
+        loaded_table.add_column("Description", style="white", width=26)
+        loaded_table.add_column("Created", style="green", width=16)
+        loaded_table.add_column("Modified", style="blue", width=16)
         
         for tool_name, tool_info in loaded_workflows.items():
             metadata = tool_info.get("metadata", {})
+            
+            # Filter by source if specified
+            workflow_source = metadata.get("source", "local")
+            if source and source != "all":
+                if source == "local" and workflow_source not in ["local", "comfyui"]:
+                    continue
+                elif source == "runninghub" and workflow_source != "runninghub":
+                    continue
             description = metadata.get("description", "No description")
             if not description or description == "No description":
                 description = "[dim]No description[/dim]"
             else:
                 # Limit description length to avoid overly tall rows
-                max_length = 120  # Adjust based on column width
+                max_length = 100  # Adjust based on column width
                 if len(description) > max_length:
                     description = description[:max_length-3] + "..."
             
@@ -94,6 +105,13 @@ def list_workflows():
             else:
                 param_display = "No params"
             
+            # Determine workflow source display
+            workflow_source = metadata.get("source", "local")
+            if workflow_source == "runninghub":
+                source_display = "🌐 Cloud"
+            else:
+                source_display = "🏠 Local"
+            
             # Get file creation and modification times
             workflow_file = custom_workflows_dir / f"{tool_name}.json"
             if workflow_file.exists():
@@ -104,7 +122,7 @@ def list_workflows():
                 created_time = "Unknown"
                 modified_time = "Unknown"
             
-            loaded_table.add_row(tool_name, param_display, description, created_time, modified_time)
+            loaded_table.add_row(tool_name, source_display, param_display, description, created_time, modified_time)
         
         console.print(loaded_table)
         
@@ -311,6 +329,45 @@ def open_workflows_folder():
         console.print(f"❌ [red]Unexpected error: {e}[/red]")
 
 
+@workflow_app.command("add-runninghub")
+def add_runninghub_workflow(
+    workflow_id: str = typer.Argument(..., help="RunningHub workflow ID"),
+    tool_name: str = typer.Argument(..., help="Tool name for the workflow (must be valid Python identifier)")
+):
+    """📥 Add a workflow from RunningHub by workflow ID"""
+    
+    from pixelle.cli.utils.display import show_header_info
+    show_header_info()
+    
+    console.print(Panel(
+        f"🌐 [bold]Adding RunningHub Workflow[/bold]\n\n"
+        f"Workflow ID: {workflow_id}\n"
+        f"Tool Name: {tool_name}",
+        title="RunningHub Workflow",
+        border_style="cyan"
+    ))
+    
+    try:
+        # Import the RunningHub workflow handling function
+        import asyncio
+        from pixelle.utils.runninghub_util import handle_runninghub_workflow_save
+        
+        # Run the async function
+        result = asyncio.run(handle_runninghub_workflow_save(workflow_id, tool_name))
+        
+        if result["success"]:
+            console.print("✅ [bold green]RunningHub workflow added successfully![/bold green]")
+            console.print(f"📁 [bold]Workflow file:[/bold] {result['workflow_file_path']}")
+            console.print("💡 Run [bold]pixelle start[/bold] to load the new tool")
+        else:
+            console.print(f"❌ [bold red]Failed to add RunningHub workflow:[/bold red] {result['error']}")
+            raise typer.Exit(1)
+            
+    except Exception as e:
+        console.print(f"❌ [bold red]Error adding RunningHub workflow:[/bold red] {e}")
+        raise typer.Exit(1)
+
+
 def show_workflow_menu():
     """Show interactive workflow management menu"""
     from pixelle.cli.utils.display import show_header_info
@@ -332,6 +389,7 @@ def show_workflow_menu():
                 "What would you like to do?",
                 choices=[
                     questionary.Choice("📋 List Current MCP Tools", "list"),
+                    questionary.Choice("🌐 Add RunningHub Workflow", "add_runninghub"),
                     questionary.Choice("📥 Install Workflow Examples", "install"), 
                     questionary.Choice("📁 Open Workflows Folder", "open"),
                     questionary.Choice("❌ Exit", "exit")
@@ -354,6 +412,19 @@ def show_workflow_menu():
             elif choice == "list":
                 console.print("\n" + "="*80 + "\n")
                 list_workflows()
+                console.print("\n" + "="*80 + "\n")
+            elif choice == "add_runninghub":
+                console.print("\n" + "="*80 + "\n")
+                # Interactive RunningHub workflow addition
+                workflow_id = questionary.text("Enter RunningHub workflow ID:").ask()
+                if workflow_id:
+                    tool_name = questionary.text("Enter tool name (must be valid Python identifier):").ask()
+                    if tool_name:
+                        add_runninghub_workflow(workflow_id, tool_name)
+                    else:
+                        console.print("⚠️  Tool name is required")
+                else:
+                    console.print("⚠️  Workflow ID is required")
                 console.print("\n" + "="*80 + "\n")
             elif choice == "install":
                 console.print("\n" + "="*80 + "\n")

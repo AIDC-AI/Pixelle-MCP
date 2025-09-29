@@ -56,7 +56,12 @@ def show_current_config():
     
     # Service configuration
     table.add_row("Service address", f"http://{settings.host}:{settings.port}")
-    table.add_row("ComfyUI address", settings.comfyui_base_url)
+    
+    # Execution engines configuration
+    if hasattr(settings, 'comfyui_base_url') and settings.comfyui_base_url:
+        table.add_row("ComfyUI address", settings.comfyui_base_url)
+    if hasattr(settings, 'runninghub_api_key') and settings.runninghub_api_key:
+        table.add_row("RunningHub", "✅ Configured")
     
     # LLM configuration
     providers = settings.get_configured_llm_providers()

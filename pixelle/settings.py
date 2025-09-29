@@ -37,8 +37,8 @@ class Settings(BaseSettings):
     comfyui_executor_type: str = "http"
     
     # RunningHub configuration
+    runninghub_base_url: str = "https://www.runninghub.ai"
     runninghub_api_key: str = ""
-    runninghub_base_url: str = "https://www.runninghub.cn"
     runninghub_timeout: int = 3600
     runninghub_retry_count: int = 0
     

@@ -13,8 +13,8 @@ from pixelle.utils.config_util import build_env_lines
 console = Console()
 
 
-def save_unified_config(comfyui_config: Dict, llm_configs: List[Dict], 
-                       service_config: Dict, default_model: Optional[str] = None):
+def save_unified_config(comfyui_config: Optional[Dict], runninghub_config: Optional[Dict], 
+                       llm_configs: List[Dict], service_config: Dict, default_model: Optional[str] = None):
     """Save unified configuration to .env file"""
     console.print(Panel(
         "💾 [bold]Save configuration[/bold]\n\n"
@@ -23,7 +23,7 @@ def save_unified_config(comfyui_config: Dict, llm_configs: List[Dict],
         border_style="magenta"
     ))
     
-    env_lines = build_env_lines(comfyui_config, llm_configs, service_config, default_model)
+    env_lines = build_env_lines(comfyui_config, runninghub_config, llm_configs, service_config, default_model)
     
     # Save to root path
     from pixelle.utils.os_util import ensure_pixelle_root_path
