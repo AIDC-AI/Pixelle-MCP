@@ -2,7 +2,7 @@
 
 <p align="center"><a href="README.md">English</a> | <b>中文</b></p>
 
-<p align="center">✨ 基于 MCP 协议的 AIGC 方案，0代码将 ComfyUI 工作流无缝转化为 MCP Tool，让 LLM 与 ComfyUI 强强联合。</p>
+<p align="center">✨ 基于 MCP 协议的 AIGC 方案，支持本地ComfyUI和云端ComfyUI(RunningHub)双模式，0代码将工作流转化为 MCP Tool。</p>
 
 ![](docs/readme-1.png)
 
@@ -11,6 +11,7 @@ https://github.com/user-attachments/assets/7f0fc42f-9c44-4ab0-aaa8-1072082964c1
 
 ## 📋 最近更新
 
+- ✅ **2025-09-29**：新增RunningHub云端ComfyUI支持，无需本地GPU和ComfyUI环境也能运行工作流
 - ✅ **2025-09-03**：架构重构，从三服务合并为统一应用；新增CLI工具支持；发布到 [PyPI](https://pypi.org/project/pixelle/)
 - ✅ **2025-08-12**：集成 LiteLLM 框架，新增 Gemini、DeepSeek、Claude、Qwen 等多模型支持
 
@@ -18,7 +19,7 @@ https://github.com/user-attachments/assets/7f0fc42f-9c44-4ab0-aaa8-1072082964c1
 ## 🚀 功能特性
 
 - ✅ 🔄 **全模态支持**: 支持TISV（Text、Image、Sound/Speech、Video）全模态的互转和生成
-- ✅ 🧩 **ComfyUI生态**: 底层基于[ComfyUI](https://github.com/comfyanonymous/ComfyUI)实现，继承ComfyUI的开放生态下的所有能力
+- ✅ 🚀 **双运行模式**: 本地ComfyUI自建环境 + RunningHub云端ComfyUI服务，用户可根据需求灵活选择
 - ✅ 🔧 **零代码开发**: 制定并实现了 Workflow 即 MCP Tool 的方案，0代码开发，即可动态添加新的 MCP Tool
 - ✅ 🗄️ **MCP Server**: 基于[MCP](https://modelcontextprotocol.io/introduction)协议提供功能支持，支持任意mcp client集成（包含但不限于Cursor、Claude Desktop等）
 - ✅ 🌐 **Web界面**: 基于[Chainlit](https://github.com/Chainlit/chainlit)框架开发，继承了Chainlit的UI交互控件，支持集成更多的MCP Server
@@ -34,7 +35,7 @@ Pixelle MCP 采用**统一架构设计**，将MCP服务端、Web界面和文件�
 - 🌐 **Web界面**: 基于 Chainlit 的聊天界面，支持多模态交互
 - 🔌 **MCP端点**: 供外部MCP客户端（如Cursor、Claude Desktop）连接
 - 📁 **文件服务**: 处理文件上传、下载和存储
-- 🛠️ **工作流引擎**: 自动将ComfyUI工作流转换为MCP工具
+- 🛠️ **工作流引擎**: 支持本地ComfyUI和云端ComfyUI(RunningHub)工作流，自动将工作流转换为MCP工具
 
 ![](docs/%20mcp_structure.png)
 
@@ -70,7 +71,7 @@ pixelle
 
 📚 **[查看pip完整命令手册 →](docs/CLI_CN.md#pip-install-方式)**
 
-启动后会自动进入**配置向导**，引导你完成ComfyUI连接和LLM配置。
+启动后会自动进入**配置向导**，引导你选择执行模式(本地ComfyUI或云端RunningHub)和LLM配置。
 
 ### 🛠️ 方式2：本地开发部署
 
@@ -141,15 +142,30 @@ docker compose logs -f
 
 首次启动时，系统会自动检测配置状态：
 
-1. **🔧 ComfyUI连接**：确保ComfyUI服务运行在 `http://localhost:8188`
+1. **🚀 执行模式选择**：选择本地ComfyUI或云端RunningHub（推荐新手选择RunningHub）
 2. **🤖 LLM配置**：至少配置一个LLM提供商（OpenAI、Ollama等）
 3. **📁 工作流目录**：系统会自动创建必要的目录结构
+
+#### 🌟 **RunningHub云端模式优势**
+- **零门槛**：无需本地安装ComfyUI、下载模型或配置插件
+- **高性能**：企业级GPU资源，执行速度快
+- **稳定性**：专业运维保障，服务可靠性高
+- **即开即用**：注册账号即可开始使用ComfyUI工作流
+
+#### 🔧 **本地ComfyUI模式优势**  
+- **完全控制**：可自定义安装任意插件和模型
+- **隐私保护**：数据完全在本地处理
+- **离线使用**：配置完成后无需网络连接
+- **成本控制**：使用自己的硬件资源
 
 **🆘 需要帮助？** 加入社区群组获取支持（见下方社区交流部分）
 
 ## 🛠️ 添加自己的MCP Tool
 
-⚡ 一个工作流即为提个MCP Tool
+⚡ 一个工作流即为一个MCP Tool，支持两种添加方式：
+
+📋 **方式1：本地ComfyUI工作流** - 导出API格式的工作流文件
+📋 **方式2：RunningHub工作流ID** - 直接使用云端工作流编号
 
 ![](docs/workflow_to_mcp_tool.png)
 
@@ -175,6 +191,8 @@ docker compose logs -f
 ### 🔌 2. 添加复杂的MCP Tool
 
 📊 添加MCP Tool的步骤和前面一样，唯一不一样的就是工作流部分（点击下载工作流：[UI格式](docs/t2i_by_flux_turbo_ui.json) 和 [API格式](docs/t2i_by_flux_turbo.json)）
+
+> **注：** 使用RunningHub时，只需输入对应的工作流ID即可，无需下载和上传工作流文件。
 
 ![](docs/t2i_by_flux_turbo.png)
 

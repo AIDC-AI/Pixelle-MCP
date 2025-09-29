@@ -2,7 +2,7 @@
 
 <p align="center"><b>English</b> | <a href="README_CN.md">中文</a></p>
 
-<p align="center">✨ An AIGC solution based on the MCP protocol, seamlessly converting ComfyUI workflows into MCP tools with zero code, empowering LLM and ComfyUI integration.</p>
+<p align="center">✨ An AIGC solution based on the MCP protocol, supporting both local ComfyUI and cloud ComfyUI (RunningHub) modes, seamlessly converting workflows into MCP tools with zero code.</p>
 
 ![](docs/readme-1.png)
 
@@ -11,6 +11,7 @@ https://github.com/user-attachments/assets/65422cef-96f9-44fe-a82b-6a124674c417
 
 ## 📋 Recent Updates
 
+- ✅ **2025-09-29**: Added RunningHub cloud ComfyUI support, enabling workflow execution without local GPU and ComfyUI environment
 - ✅ **2025-09-03**: Architecture refactoring from three services to unified application; added CLI tool support; published to [PyPI](https://pypi.org/project/pixelle/)
 - ✅ **2025-08-12**: Integrated the LiteLLM framework, adding multi-model support for Gemini, DeepSeek, Claude, Qwen, and more
 
@@ -18,6 +19,7 @@ https://github.com/user-attachments/assets/65422cef-96f9-44fe-a82b-6a124674c417
 ## 🚀 Features
 
 - ✅ 🔄 **Full-modal Support**: Supports TISV (Text, Image, Sound/Speech, Video) full-modal conversion and generation
+- ✅ 🚀 **Dual Execution Modes**: Local ComfyUI self-hosted environment + RunningHub cloud ComfyUI service, users can flexibly choose based on their needs
 - ✅ 🧩 **ComfyUI Ecosystem**: Built on [ComfyUI](https://github.com/comfyanonymous/ComfyUI), inheriting all capabilities from the open ComfyUI ecosystem
 - ✅ 🔧 **Zero-code Development**: Defines and implements the Workflow-as-MCP Tool solution, enabling zero-code development and dynamic addition of new MCP Tools
 - ✅ 🗄️ **MCP Server**: Based on the [MCP](https://modelcontextprotocol.io/introduction) protocol, supporting integration with any MCP client (including but not limited to Cursor, Claude Desktop, etc.)
@@ -34,7 +36,7 @@ Pixelle MCP adopts a **unified architecture design**, integrating MCP server, we
 - 🌐 **Web Interface**: Chainlit-based chat interface supporting multimodal interaction
 - 🔌 **MCP Endpoint**: For external MCP clients (such as Cursor, Claude Desktop) to connect
 - 📁 **File Service**: Handles file upload, download, and storage
-- 🛠️ **Workflow Engine**: Automatically converts ComfyUI workflows into MCP tools
+- 🛠️ **Workflow Engine**: Supports both local ComfyUI and cloud ComfyUI (RunningHub) workflows, automatically converts workflows into MCP tools
 
 ![](docs/%20mcp_structure.png)
 
@@ -71,7 +73,7 @@ pixelle
 
 📚 **[View pip CLI Reference →](docs/CLI.md#pip-install-method)**
 
-After startup, it will automatically enter the **configuration wizard** to guide you through ComfyUI connection and LLM configuration.
+After startup, it will automatically enter the **configuration wizard** to guide you through execution engine selection (ComfyUI/RunningHub) and LLM configuration.
 
 ### 🛠️ Method 2: Local Development Deployment
 
@@ -142,15 +144,32 @@ Regardless of which method you use, after startup you can access via:
 
 On first startup, the system will automatically detect configuration status:
 
-1. **🔧 ComfyUI Connection**: Ensure ComfyUI service is running at `http://localhost:8188`
+1. **🚀 Execution Engine Selection**: Choose between local ComfyUI or RunningHub cloud service
 2. **🤖 LLM Configuration**: Configure at least one LLM provider (OpenAI, Ollama, etc.)
 3. **📁 Workflow Directory**: System will automatically create necessary directory structure
+
+### 🌐 RunningHub Cloud Mode Advantages
+- ✅ **Zero Hardware Requirements**: No need for local GPU or high-performance hardware
+- ✅ **No Environment Setup**: No need to install and configure ComfyUI locally
+- ✅ **Ready to Use**: Register and get API key to start immediately
+- ✅ **Stable Performance**: Professional cloud infrastructure ensures stable execution
+- ✅ **Auto Scaling**: Automatically handles concurrent requests and resource allocation
+
+### 🏠 Local ComfyUI Mode Advantages
+- ✅ **Full Control**: Complete control over execution environment and model versions
+- ✅ **Privacy Protection**: All data processing happens locally, ensuring data privacy
+- ✅ **Custom Models**: Support for custom models and nodes not available in cloud
+- ✅ **No Network Dependency**: Can work offline without internet connection
+- ✅ **Cost Control**: No cloud service fees for high-frequency usage
 
 **🆘 Need Help?** Join community groups for support (see Community section below)
 
 ## 🛠️ Add Your Own MCP Tool
 
-⚡ One workflow = One MCP Tool
+⚡ One workflow = One MCP Tool, supports two addition methods:
+
+📋 **Method 1: Local ComfyUI Workflow** - Export API format workflow files
+📋 **Method 2: RunningHub Workflow ID** - Use cloud workflow IDs directly
 
 ![](docs/workflow_to_mcp_tool.png)
 
@@ -176,6 +195,8 @@ On first startup, the system will automatically detect configuration status:
 ### 🔌 2. Add a Complex MCP Tool
 
 The steps are the same as above, only the workflow part differs (Download workflow: [UI format](docs/t2i_by_flux_turbo_ui.json) and [API format](docs/t2i_by_flux_turbo.json))
+
+> **Note:** When using RunningHub, you only need to input the corresponding workflow ID, no need to download and upload workflow files.
 
 ![](docs/t2i_by_flux_turbo.png)
 
