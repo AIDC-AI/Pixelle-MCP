@@ -231,10 +231,6 @@ $<参数名>.[~]<字段名>[!][:<描述信息>]
 
 > 📝 注：`LoadImage`、`VHS_LoadAudioUpload`、`VHS_LoadVideo` 等节点已内置此功能，无需添加 `~` 标记
 
-**可选参数示例：**
-
-- `EmptyLatentImage` 节点 title 设为：`$width.width:图片宽度，默认512`
-- 含义：创建名为 `width` 的可选参数，对应节点的 `width` 字段，默认值为节点中设置的 512
 
 ### 🎯 类型推断规则
 
