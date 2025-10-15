@@ -12,6 +12,7 @@ from typing import Any, Optional, Dict, List, Tuple
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 import aiohttp
+import random
 
 from pixelle.logger import logger
 from pixelle.utils.file_util import download_files
@@ -143,6 +144,38 @@ class ComfyUIExecutor(ABC):
                 data[field] = data[field]
         
         return ExecuteResult(**data)
+
+    def _generate_63bit_seed(self) -> int:
+        """Generate a 63-bit random integer seed.
+
+        Using SystemRandom to avoid global RNG side-effects in multi-threaded or
+        multi-tenant environments.
+        """
+        return random.SystemRandom().randint(0, (1 << 63) - 1)
+
+    def _randomize_seed_in_workflow(self, workflow_data: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, int]]:
+        """Replace any node inputs.seed == 0 (int or string "0") with a new random seed.
+
+        Returns a tuple of (modified_workflow, seed_changes) where seed_changes maps
+        node_id (as string) to the new seed value.
+        """
+        changed: Dict[str, int] = {}
+        for node_id, node in workflow_data.items():
+            if not isinstance(node, dict):
+                continue
+            inputs = node.get("inputs")
+            if not isinstance(inputs, dict):
+                continue
+            if "seed" in inputs:
+                val = inputs.get("seed")
+                is_zero = (isinstance(val, int) and val == 0) or (isinstance(val, str) and str(val).strip() == "0")
+                if is_zero:
+                    new_seed = self._generate_63bit_seed()
+                    inputs["seed"] = new_seed
+                    changed[str(node_id)] = new_seed
+        if changed:
+            logger.info(f"Randomized seeds for {len(changed)} node(s): {changed}")
+        return workflow_data, changed
 
     async def _apply_param_mapping(self, workflow_data: Dict[str, Any], mapping: Any, param_value: Any):
         """Apply single parameter based on parameter mapping"""

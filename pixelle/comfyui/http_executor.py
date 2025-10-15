@@ -179,6 +179,9 @@ class HttpExecutor(ComfyUIExecutor):
                 # Even if no parameters are passed, default values need to be applied
                 workflow_data = await self._apply_params_to_workflow(workflow_data, metadata, {})
             
+            # Replace any seed == 0 with a random 63-bit seed before submission
+            workflow_data, _ = self._randomize_seed_in_workflow(workflow_data)
+            
             # Extract output node information from metadata
             output_id_2_var = self._extract_output_nodes(metadata)
             

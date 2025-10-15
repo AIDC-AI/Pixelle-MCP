@@ -74,6 +74,11 @@ Note: This method requires restarting the Pixelle-MCP service
 1. Change `HOST` in `.env` to `0.0.0.0`
 2. Change `PUBLIC_READ_URL` in `.env` to LAN/public address, such as: http://192.168.1.xx:9004 or http://www.xxx.com
 
+### How to make the random seed change every time?
+
+- Set `seed` to `0` to randomize on each run.
+- Set `seed` to a positive integer (e.g., `123456`) to keep it fixed.
+
 ---
 
 💡 **Tip**: If your question is not answered in this FAQ, feel free to join our community groups or submit issues on GitHub. We will continuously update this FAQ to help more users.
