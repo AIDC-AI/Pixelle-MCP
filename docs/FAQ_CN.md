@@ -79,6 +79,21 @@ Pixelle MCP 提供三种主要安装方式：
 - 将 `seed` 设为 `0` 表示每次随机。
 - 将采样器节点的 `seed` 设置为大于 0 的整数（例如 `123456`）则固定。
 
+
+### 如何设置Pixelle MCP作为标准的MCP服务器在第三方平台调用？
+1. 先按照README进行Pixelle-MCP服务的部署。
+2. 再将部署好服务对应的地址配置到三方平台中，具体配置标准要参考该平台的规范。 例如：Cursor中集成Pixelle-MCP，打开cursor的mcp.json文件并将下面的配置信息粘贴到文件中，http://localhost:9004/ 为自己的Pixelle MCP服务器地址
+```json
+{
+  "mcpServers": {
+    "pixelle-mcp": {
+      "type": "streamable-http",
+      "url": "http://localhost:9004/pixelle/mcp"
+    }
+  }
+}
+```
+
 ---
 
 💡 **提示**：如果您的问题在此 FAQ 中未找到答案，欢迎加入我们的社区群组或在 GitHub 上提交问题。我们会持续更新这份 FAQ 来帮助更多用户。
