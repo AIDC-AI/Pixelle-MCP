@@ -79,6 +79,20 @@ Note: This method requires restarting the Pixelle-MCP service
 - Set `seed` to `0` to randomize on each run.
 - Set `seed` to a positive integer (e.g., `123456`) to keep it fixed.
 
+### How to Configure Pixelle MCP as a Standard MCP Server for Third-Party Applications?
+1. First, deploy the Pixelle-MCP service according to the README instructions.
+2. Then, configure the deployed service address in the third-party platform, following that platform's specific requirements. For example: To integrate Pixelle-MCP with Cursor, open the mcp.json file in Cursor and paste the following configuration, where http://localhost:9004/ should be replaced with your own Pixelle MCP server address:
+```json
+{
+  "mcpServers": {
+    "pixelle-mcp": {
+      "type": "streamable-http",
+      "url": "http://localhost:9004/pixelle/mcp"
+    }
+  }
+}
+```
+
 ---
 
 💡 **Tip**: If your question is not answered in this FAQ, feel free to join our community groups or submit issues on GitHub. We will continuously update this FAQ to help more users.
