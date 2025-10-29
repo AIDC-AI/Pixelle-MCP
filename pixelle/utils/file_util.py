@@ -17,19 +17,22 @@ from pixelle.utils.os_util import get_data_path
 TEMP_DIR = get_data_path("temp")
 os.makedirs(TEMP_DIR, exist_ok=True)
 
+MAX_RETRY_ATTEMPTS = 5
+RETRY_INTERVAL_SECONDS = 10
+
 
 @overload
-async def download_files(file_urls: str, suffix: str = None, auto_cleanup: bool = True, cookies: dict = None) -> AsyncGenerator[str, None]:
+async def download_files(file_urls: str, suffix: str = None, auto_cleanup: bool = True, cookies: dict = None, download_timeout: int = 30) -> AsyncGenerator[str, None]:
     ...
 
 
 @overload
-async def download_files(file_urls: List[str], suffix: str = None, auto_cleanup: bool = True, cookies: dict = None) -> AsyncGenerator[List[str], None]:
+async def download_files(file_urls: List[str], suffix: str = None, auto_cleanup: bool = True, cookies: dict = None, download_timeout: int = 30) -> AsyncGenerator[List[str], None]:
     ...
 
 
 @asynccontextmanager
-async def download_files(file_urls: Union[str, List[str]], suffix: str = None, auto_cleanup: bool = True, cookies: dict = None) -> AsyncGenerator[Union[str, List[str]], None]:
+async def download_files(file_urls: Union[str, List[str]], suffix: str = None, auto_cleanup: bool = True, cookies: dict = None, download_timeout: int = 30) -> AsyncGenerator[Union[str, List[str]], None]:
     """
     Download files from URLs to temporary files.
     
@@ -38,6 +41,7 @@ async def download_files(file_urls: Union[str, List[str]], suffix: str = None, a
         suffix: Temporary file suffix, if not specified, try to infer from URL
         auto_cleanup: Whether to automatically clean up temporary files, default is True
         cookies: Cookies used when requesting
+        download_timeout: Timeout for downloading external files, default is 30 seconds
         
     Yields:
         str: If input is str, return temporary file path
@@ -57,13 +61,29 @@ async def download_files(file_urls: Union[str, List[str]], suffix: str = None, a
             parsed_url = urlparse(url)
             is_local_file = await _is_local_file_url(url)
             
-            if is_local_file:
-                # Get file content directly from local file service
-                file_content, content_type = await _get_local_file_content(url)
-            else:
-                # Download external file using asynchronous HTTP client
-                file_content, content_type = await _download_external_file(url, cookies)
+            file_content = None
+            content_type = None
             
+            for attempt in range(MAX_RETRY_ATTEMPTS):
+                try:
+                    if is_local_file:
+                        # Get file content directly from local file service
+                        file_content, content_type = await _get_local_file_content(url)
+                    else:
+                        # Download external file using asynchronous HTTP client
+                        file_content, content_type = await _download_external_file(url, cookies, download_timeout)
+                    break # If successful, break the retry loop
+                except (requests.RequestException, aiohttp.ClientError, Exception) as e:
+                    logger.warning(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS} to download file from {url} failed: {e}")
+                    if attempt < MAX_RETRY_ATTEMPTS - 1:
+                        await asyncio.sleep(RETRY_INTERVAL_SECONDS)
+                    else:
+                        logger.error(f"Failed to download file from {url} after {MAX_RETRY_ATTEMPTS} attempts.")
+                        raise # Re-raise the last exception if all attempts fail
+            
+            if file_content is None:
+                raise Exception(f"Failed to retrieve content for {url}")
+
             # Determine file suffix
             file_suffix = suffix
             if not file_suffix:
@@ -166,33 +186,51 @@ async def _get_local_file_content(url: str) -> tuple[bytes, str]:
     """Get file content directly from local file service, avoid HTTP request loop"""
     from pixelle.upload.file_service import file_service
     
-    # Extract file ID from URL
-    parsed_url = urlparse(url)
-    path_parts = parsed_url.path.strip('/').split('/')
-    if len(path_parts) >= 2 and path_parts[0] == 'files':
-        file_id = path_parts[1]
-        
-        # Get file content and information directly from file service
-        file_content = await file_service.get_file(file_id)
-        file_info = await file_service.get_file_info(file_id)
-        
-        if file_content is None:
-            raise Exception(f"File not found: {file_id}")
-            
-        content_type = file_info.content_type if file_info else "application/octet-stream"
-        return file_content, content_type
-    
-    raise Exception(f"Invalid local file URL: {url}")
+    for attempt in range(MAX_RETRY_ATTEMPTS):
+        try:
+            # Extract file ID from URL
+            parsed_url = urlparse(url)
+            path_parts = parsed_url.path.strip('/').split('/')
+            if len(path_parts) >= 2 and path_parts[0] == 'files':
+                file_id = path_parts[1]
+                
+                # Get file content and information directly from file service
+                file_content = await file_service.get_file(file_id)
+                file_info = await file_service.get_file_info(file_id)
+                
+                if file_content is None:
+                    raise Exception(f"File not found: {file_id}")
+                    
+                content_type = file_info.content_type if file_info else "application/octet-stream"
+                return file_content, content_type
+            else:
+                raise Exception(f"Invalid local file URL: {url}")
+        except Exception as e:
+            logger.warning(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS} to get local file content from {url} failed: {e}")
+            if attempt < MAX_RERY_ATTEMPTS - 1:
+                await asyncio.sleep(RETRY_INTERVAL_SECONDS)
+            else:
+                logger.error(f"Failed to get local file content from {url} after {MAX_RETRY_ATTEMPTS} attempts.")
+                raise # Re-raise the last exception if all attempts fail
 
 
-async def _download_external_file(url: str, cookies: dict = None) -> tuple[bytes, str]:
+async def _download_external_file(url: str, cookies: dict = None, download_timeout: int = 30) -> tuple[bytes, str]:
     """Download external file using asynchronous HTTP client"""
-    async with aiohttp.ClientSession(cookies=cookies, timeout=aiohttp.ClientTimeout(total=30)) as session:
-        async with session.get(url) as response:
-            response.raise_for_status()
-            content = await response.read()
-            content_type = response.headers.get('Content-Type', '')
-            return content, content_type
+    for attempt in range(MAX_RETRY_ATTEMPTS):
+        try:
+            async with aiohttp.ClientSession(cookies=cookies, timeout=aiohttp.ClientTimeout(total=download_timeout)) as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    content = await response.read()
+                    content_type = response.headers.get('Content-Type', '')
+                    return content, content_type
+        except (requests.RequestException, aiohttp.ClientError) as e:
+            logger.warning(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS} to download external file from {url} failed: {e}")
+            if attempt < MAX_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(RETRY_INTERVAL_SECONDS)
+            else:
+                logger.error(f"Failed to download external file from {url} after {MAX_RETRY_ATTEMPTS} attempts.")
+                raise # Re-raise the last exception if all attempts fail
 
 
 def cleanup_temp_files(file_paths: Union[str, List[str]]) -> None:
@@ -206,9 +244,18 @@ def cleanup_temp_files(file_paths: Union[str, List[str]]) -> None:
         file_paths = [file_paths]
     
     for file_path in file_paths:
-        if os.path.exists(file_path):
-            try:
-                os.unlink(file_path)
-                logger.debug(f"Cleaned up temporary file: {file_path}")
-            except Exception as e:
-                logger.warning(f"Failed to clean up temporary file {file_path}: {str(e)}") 
+        for attempt in range(MAX_RETRY_ATTEMPTS):
+            if os.path.exists(file_path):
+                try:
+                    os.unlink(file_path)
+                    logger.debug(f"Cleaned up temporary file: {file_path}")
+                    break # If successful, break the retry loop
+                except Exception as e:
+                    logger.warning(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS} to clean up temporary file {file_path} failed: {str(e)}")
+                    if attempt < MAX_RETRY_ATTEMPTS - 1:
+                        import time
+                        time.sleep(RETRY_INTERVAL_SECONDS)
+                    else:
+                        logger.error(f"Failed to clean up temporary file {file_path} after {MAX_RETRY_ATTEMPTS} attempts.")
+            else:
+                break # File does not exist, no need to clean up

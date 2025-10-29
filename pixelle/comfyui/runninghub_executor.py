@@ -17,6 +17,9 @@ from pixelle.utils.os_util import get_data_path
 from pixelle.settings import settings
 
 
+MAX_RETRY_ATTEMPTS = 5
+RETRY_INTERVAL_SECONDS = 10
+
 class RunningHubExecutor(ComfyUIExecutor):
     """RunningHub executor for executing workflows on RunningHub cloud platform"""
     
@@ -60,13 +63,25 @@ class RunningHubExecutor(ComfyUIExecutor):
             node_info_list = await self._convert_params_to_node_info_list(metadata, params or {})
             
             # Create task on RunningHub
-            task_data = await self.client.create_task(workflow_id, node_info_list if node_info_list else None)
-            task_id = task_data.get('taskId')
+            task_id = None
+            for attempt in range(MAX_RETRY_ATTEMPTS):
+                try:
+                    task_data = await self.client.create_task(workflow_id, node_info_list if node_info_list else None)
+                    task_id = task_data.get('taskId')
+                    if not task_id:
+                        raise Exception("Task ID not returned from RunningHub.")
+                    logger.info(f"RunningHub task created: {task_id}")
+                    break
+                except Exception as e:
+                    logger.warning(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS} to create task on RunningHub failed: {e}")
+                    if attempt < MAX_RETRY_ATTEMPTS - 1:
+                        await asyncio.sleep(RETRY_INTERVAL_SECONDS)
+                    else:
+                        logger.error(f"Failed to create RunningHub task after {MAX_RETRY_ATTEMPTS} attempts.")
+                        return ExecuteResult(status="error", msg=f"Failed to create RunningHub task: {str(e)}")
             
             if not task_id:
                 return ExecuteResult(status="error", msg="Failed to create RunningHub task")
-            
-            logger.info(f"RunningHub task created: {task_id}")
             
             # Extract output node information from metadata
             output_id_2_var = self._extract_output_nodes(metadata)
@@ -141,31 +156,40 @@ class RunningHubExecutor(ComfyUIExecutor):
     
     async def _upload_media_from_url(self, media_url: str) -> str:
         """Upload media from URL to RunningHub"""
-        try:
-            # Download the file first
-            async with download_files(media_url) as temp_file_path:
-                # Upload to RunningHub and get fileName
-                result = await self.client.upload_file(temp_file_path)
-                return result
-        except Exception as e:
-            logger.error(f"Failed to upload media from URL {media_url}: {e}")
-            raise
+        for attempt in range(MAX_RETRY_ATTEMPTS):
+            try:
+                # Download the file first
+                async with download_files(media_url) as temp_file_path:
+                    # Upload to RunningHub and get fileName
+                    result = await self.client.upload_file(temp_file_path)
+                    return result
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS} to upload media from URL {media_url} failed: {e}")
+                if attempt < MAX_RETRY_ATTEMPTS - 1:
+                    await asyncio.sleep(RETRY_INTERVAL_SECONDS)
+                else:
+                    logger.error(f"Failed to upload media from URL {media_url} after {MAX_RETRY_ATTEMPTS} attempts.")
+                    raise # Re-raise the last exception if all attempts fail
     
     async def _download_text_from_url(self, text_url: str) -> str:
         """Download text content from URL"""
-        try:
-            async with self.get_comfyui_session() as session:
-                async with session.get(text_url) as response:
-                    if response.status != 200:
-                        raise Exception(f"Download text failed: HTTP {response.status}")
-                    
-                    # Get text content
-                    text_content = await response.text()
-                    return text_content.strip()
-                    
-        except Exception as e:
-            logger.error(f"Failed to download text from URL {text_url}: {e}")
-            raise
+        for attempt in range(MAX_RETRY_ATTEMPTS):
+            try:
+                async with self.get_comfyui_session() as session:
+                    async with session.get(text_url) as response:
+                        if response.status != 200:
+                            raise Exception(f"Download text failed: HTTP {response.status}")
+                        
+                        # Get text content
+                        text_content = await response.text()
+                        return text_content.strip()
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS} to download text from URL {text_url} failed: {e}")
+                if attempt < MAX_RETRY_ATTEMPTS - 1:
+                    await asyncio.sleep(RETRY_INTERVAL_SECONDS)
+                else:
+                    logger.error(f"Failed to download text from URL {text_url} after {MAX_RETRY_ATTEMPTS} attempts.")
+                    raise # Re-raise the last exception if all attempts fail
     
     
     async def _wait_for_task_completion(self, task_id: str, output_id_2_var: Optional[Dict[str, str]] = None, max_wait_time: int = None) -> ExecuteResult:
@@ -181,35 +205,46 @@ class RunningHubExecutor(ComfyUIExecutor):
             if elapsed_time >= max_wait_time:
                 break
                 
-            try:
-                # Query task status
-                task_status = await self.client.query_task_status(task_id)
-                logger.debug(f"Task {task_id} status: {task_status}")
-                
-                # RunningHub API only returns: ["QUEUED","RUNNING","FAILED","SUCCESS"]
-                if task_status == 'SUCCESS':
-                    # Task completed - get results
-                    result_data = await self.client.query_task_result(task_id)
-                    return await self._process_task_result(task_id, result_data, output_id_2_var)
-                
-                elif task_status == 'FAILED':
-                    # Task failed
-                    return ExecuteResult(
-                        status="error",
-                        prompt_id=task_id,
-                        msg="RunningHub task failed"
-                    )
-                
-                elif task_status in ['QUEUED', 'RUNNING']:
-                    # Task still in progress - wait and check again
-                    logger.info(f"Task {task_id} status: {task_status}, waiting...")
-                    await asyncio.sleep(check_interval)
-                    continue
+            for attempt in range(MAX_RETRY_ATTEMPTS):
+                try:
+                    # Query task status
+                    task_status = await self.client.query_task_status(task_id)
+                    logger.debug(f"Task {task_id} status: {task_status}")
                     
-            except Exception as e:
-                logger.error(f"Error checking task status {task_id}: {e}")
-                await asyncio.sleep(check_interval)
+                    # RunningHub API only returns: ["QUEUED","RUNNING","FAILED","SUCCESS"]
+                    if task_status == 'SUCCESS':
+                        # Task completed - get results
+                        result_data = await self.client.query_task_result(task_id)
+                        return await self._process_task_result(task_id, result_data, output_id_2_var)
+                    
+                    elif task_status == 'FAILED':
+                        # Task failed
+                        return ExecuteResult(
+                            status="error",
+                            prompt_id=task_id,
+                            msg="RunningHub task failed"
+                        )
+                    
+                    elif task_status in ['QUEUED', 'RUNNING']:
+                        # Task still in progress - wait and check again
+                        logger.info(f"Task {task_id} status: {task_status}, waiting...")
+                        await asyncio.sleep(check_interval)
+                        continue
+                except Exception as e:
+                    logger.warning(f"Attempt {attempt + 1}/{MAX_RETRY_ATTEMPTS} to check task status {task_id} failed: {e}")
+                    if attempt < MAX_RETRY_ATTEMPTS - 1:
+                        await asyncio.sleep(RETRY_INTERVAL_SECONDS)
+                    else:
+                        logger.error(f"Failed to check task status {task_id} after {MAX_RETRY_ATTEMPTS} attempts.")
+                        # If all retries fail, break the outer loop and return timeout
+                        break 
+            else: # This else block executes if the for loop completes without a 'break'
+                # If the task is still in QUEUED/RUNNING after all retries, continue to the next iteration of the while loop
                 continue
+            
+            # If we reach here, it means either the task succeeded, failed, or all retries for status check failed.
+            # If it's not SUCCESS or FAILED, it implies a timeout or persistent error during status checks.
+            break # Break the while True loop if we've handled the task or exhausted retries
         
         # Timeout
         return ExecuteResult(
