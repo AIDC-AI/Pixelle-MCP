@@ -25,6 +25,7 @@ dependencies = [
     "chainlit>=2.7.1.1",
     "fastapi>=0.116.1",
     "fastmcp>=2.7.1",
+    "ffmpeg-python>=0.2.0",
     "litellm>=1.76.0",
     "pillow>=11.2.1",
     "psutil>=5.9.0",
