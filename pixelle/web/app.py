@@ -17,6 +17,26 @@ from pixelle.web.chat.chat_settings import setup_chat_settings, setup_settings_u
 from pixelle.web.chat import chat_handler as tool_handler
 from pixelle.web import auth
 from pixelle.utils.file_uploader import upload
+from pixelle.db import persistence as db_persistence
+
+# Monkey patch Chainlit user_env parsing to avoid UnboundLocalError on invalid input
+try:
+    import json as _json
+    from chainlit import socket as _cl_socket  # type: ignore
+
+    def _safe_load_user_env(user_env_string):  # type: ignore
+        if not user_env_string:
+            return {}
+        try:
+            data = _json.loads(user_env_string)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    if hasattr(_cl_socket, "load_user_env"):
+        _cl_socket.load_user_env = _safe_load_user_env  # type: ignore
+except Exception:
+    pass
 
 
 @cl.set_chat_profiles
@@ -48,6 +68,8 @@ async def start():
         content=system_prompt
     )
     cl.chat_context.add(sys_message)
+    # Ensure DB chat session
+    await db_persistence.ensure_session_started(default_title=None)
     
 @cl.on_settings_update
 async def on_settings_update(settings):
@@ -74,8 +96,8 @@ async def on_message(message: cl.Message):
     is_handled = await starters.hook_by_starters(message)
     if is_handled:
         return
-    
     need_update = False
+    logger.info(f"on_message: {message.elements}")
     for element in message.elements:
         is_media = isinstance(element, cl.Image) \
             or isinstance(element, cl.Audio) \
@@ -89,6 +111,12 @@ async def on_message(message: cl.Message):
     
     cl_messages = cl.chat_context.get()
     messages = messages_from_chaintlit_to_openai(cl_messages)
+    # Save user message
+    try:
+        db_session_id = cl.user_session.get("db_session_id") or await db_persistence.ensure_session_started()
+        await db_persistence.save_message(db_session_id, role="user", content=message.content or "")
+    except Exception:
+        pass
     
     # Use tool processor to process streaming response and tool calls
     chat_profile = cl.user_session.get("chat_profile")

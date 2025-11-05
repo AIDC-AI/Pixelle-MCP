@@ -333,5 +333,38 @@ We welcome all forms of contribution! Whether you're a developer, designer, or u
 * ⚡ [Flux](https://github.com/black-forest-labs/flux)
 * 🤖 [LiteLLM](https://github.com/BerriAI/litellm)
 
+## Persistence (SQLite + Prisma for Python)
+
+Pixelle can persist users, chat sessions, and messages to a local SQLite database via Prisma's Python client.
+
+Setup:
+
+1) Install Python dependency (using uv or pip):
+
+```bash
+uv pip install prisma
+# or
+pip install prisma
+```
+
+2) Generate Prisma client (downloads engines, needs network):
+
+```bash
+python -m prisma generate
+```
+
+3) Create and apply the initial schema to the SQLite DB:
+
+```bash
+# creates prisma/sqlite.db and applies schema
+python -m prisma db push
+```
+
+The schema lives in `prisma/schema.prisma`. The SQLite DB file is created at `prisma/sqlite.db`.
+
+Runtime:
+- The FastAPI app connects to Prisma during startup and disconnects on shutdown.
+- A chat session is created on chat start; user and assistant messages are saved automatically.
+
 ## License
 This project is released under the MIT License ([LICENSE](LICENSE), SPDX-License-identifier: MIT).

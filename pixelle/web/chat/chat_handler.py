@@ -17,6 +17,8 @@ from pixelle.web.chat.starters import build_save_action
 from pixelle.web.utils.time_util import format_duration
 from pixelle.logger import logger
 from pixelle.settings import settings
+from pixelle.db import persistence as db_persistence
+from pixelle.mcp_core import client as mcp_client
 
 save_starter_enabled = settings.chainlit_save_starter_enabled
 
@@ -386,6 +388,7 @@ async def _handle_response(model_info, api_params, enhanced_messages, messages):
                     chunk, msg, current_tool_calls, current_args
                 )
                 
+                logger.info(f"_handle_stream_chunk: {chunk_has_tool_call}/{finish_reason}")
                 if chunk_has_tool_call:
                     has_tool_call = True
                 
@@ -431,6 +434,12 @@ async def _handle_response(model_info, api_params, enhanced_messages, messages):
                         "role": "assistant", 
                         "content": msg.content
                     })
+                    # Persist assistant message
+                    try:
+                        db_session_id = cl.user_session.get("db_session_id") or await db_persistence.ensure_session_started()
+                        await db_persistence.save_message(db_session_id, role="assistant", content=msg.content or "")
+                    except Exception:
+                        pass
             else:
                 # If there are tool calls, send message directly (tool call related messages are handled elsewhere)
                 await msg.send()
@@ -530,9 +539,17 @@ async def process_streaming_response(
 # MCP connection management convenience functions
 async def handle_mcp_connect(connection, session: ClientSession, tools_converter_func):
     """Handle common logic for MCP connections"""
-    tools_result = await session.list_tools()
-    openai_tools = tools_converter_func(tools_result.tools)
-    
+    # tools_result = await session.list_tools()
+    # openai_tools = tools_converter_func(tools_result.tools)
+    #
+    # mcp_tools = cl.user_session.get("mcp_tools", {})
+    # mcp_tools[connection.name] = openai_tools
+    # cl.user_session.set("mcp_tools", mcp_tools)
+
+    async with mcp_client:
+        mcp_client_tools = await mcp_client.list_tools()
+        openai_tools = tools_converter_func(mcp_client_tools)
+
     mcp_tools = cl.user_session.get("mcp_tools", {})
     mcp_tools[connection.name] = openai_tools
     cl.user_session.set("mcp_tools", mcp_tools)

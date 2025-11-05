@@ -5,6 +5,7 @@
 from pixelle.settings import settings
 
 from fastapi import FastAPI
+
 from contextlib import asynccontextmanager
 from starlette.middleware.cors import CORSMiddleware
 from chainlit.config import load_module, config as chainlit_config
@@ -15,7 +16,9 @@ from pixelle.utils.os_util import get_src_path
 from pixelle.utils.openapi_util import create_custom_openapi_function
 from pixelle.mcp_core import mcp
 from pixelle.api.files_api import router as files_router
+from pixelle.api.mcp_tools_api import router as mcp_tools_router
 from pixelle.middleware import StaticCacheMiddleware, HTMLCDNReplaceMiddleware, AppJsMiddleware
+from pixelle.db.prisma_client import connect as prisma_connect, disconnect as prisma_disconnect
 
 
 # Modify chainlit config
@@ -30,7 +33,6 @@ load_module(chainlit_entry_file)
 # Create ASGI app of MCP
 mcp_app = mcp.http_app(path='/mcp')
 
-
 # combine multi lifespans
 @asynccontextmanager
 async def combined_lifespan(app: FastAPI):
@@ -38,7 +40,12 @@ async def combined_lifespan(app: FastAPI):
     async with mcp_app.lifespan(app):
         # start chainlit lifespan
         async with chainlit_lifespan(app):
-            yield
+            # start Prisma connection
+            await prisma_connect()
+            try:
+                yield
+            finally:
+                await prisma_disconnect()
 
 
 # Create a fastapi application
@@ -85,6 +92,9 @@ from pixelle.tools import workflow_manager_tool
 # Register files router
 app.include_router(files_router, prefix="/files")
 
+# Register MCP tools router
+app.include_router(mcp_tools_router, prefix="/mcp-tools")
+
 # Mount MCP server to `/pixelle` path
 app.mount("/pixelle", mcp_app)
 
@@ -103,7 +113,6 @@ for route in chainlit_app.routes:
 
 # Override the default OpenAPI generation with custom function
 app.openapi = create_custom_openapi_function(app)
-
 
 def main():
     import uvicorn

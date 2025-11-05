@@ -1,0 +1,53 @@
+// Prisma schema for Pixelle-MCP persistence (SQLite)
+// Requires prisma-client-py (Python Prisma)
+
+generator client {
+  provider = "prisma-client-py"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./sqlite.db"
+}
+
+model User {
+  id         String        @id @default(cuid())
+  identifier String        @unique
+  name       String?
+  metadata   String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  sessions   ChatSession[]
+}
+
+model ChatSession {
+  id         String    @id @default(cuid())
+  // Optional relation to User (anonymous chats allowed)
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+
+  title      String?
+  externalId String?   @unique // e.g. Chainlit session id
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  messages   Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role       String
+  content    String      // final text content
+  metadata   String?
+
+  createdAt  DateTime    @default(now())
+
+  @@index([sessionId])
+  @@index([createdAt])
+}
