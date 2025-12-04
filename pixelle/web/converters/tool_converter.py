@@ -103,16 +103,26 @@ def fix_property_schema(prop_schema: dict) -> dict:
     if "properties" in fixed and isinstance(fixed["properties"], dict):
         fixed["properties"] = fix_schema_properties(fixed["properties"])
     
-    # 6. 清理可能存在的无效字段
-    # 移除所有非标准 JSON Schema 字段中的列表值
-    for key in list(fixed.keys()):
-        if key not in ['type', 'properties', 'items', 'required', 'enum', 'description', 'default', 'title', 'examples']:
-            # 非标准字段，如果是列表或其他复杂类型，尝试转换为字符串描述
-            if isinstance(fixed[key], (list, dict)) and key != 'additionalProperties':
-                try:
-                    fixed[key] = str(fixed[key])
-                except:
-                    del fixed[key]
+    # 6. 保留合法的 JSON Schema 字段
+    # 定义所有标准的 JSON Schema 字段
+    valid_schema_fields = {
+        'type', 'properties', 'items', 'required', 'enum', 'description', 
+        'default', 'title', 'examples', 'additionalProperties', 
+        'minLength', 'maxLength', 'minimum', 'maximum', 'pattern', 'format',
+        'anyOf', 'oneOf', 'allOf', 'not',  # 组合 schema 字段（支持 Optional 等）
+        'const', 'multipleOf', 'exclusiveMinimum', 'exclusiveMaximum',
+        'minItems', 'maxItems', 'uniqueItems', 'minProperties', 'maxProperties',
+        '$ref', '$schema', 'definitions'  # 引用相关字段
+    }
+    
+    # 只删除非标准字段
+    keys_to_remove = []
+    for key in fixed.keys():
+        if key not in valid_schema_fields:
+            keys_to_remove.append(key)
+    
+    for key in keys_to_remove:
+        del fixed[key]
     
     return fixed
 
