@@ -2,173 +2,168 @@
 # This project is licensed under the MIT License (SPDX-License-identifier: MIT).
 
 import re
+import json
 
-def normalize_type_value(type_value: str) -> str:
-    """规范化类型值，将编程语言类型转换为 JSON Schema 类型"""
-    if not isinstance(type_value, str):
-        return type_value
+def is_valid_json_schema(obj):
+    """检查对象是否是有效的 JSON Schema"""
+    if not isinstance(obj, dict):
+        return False
     
-    # 移除泛型标记和尖括号内容 (如 Map<String, Any> -> Map)
-    type_value = re.sub(r'<[^>]+>', '', type_value).strip()
+    # 必须有 type 或者是组合 schema (anyOf/oneOf/allOf)
+    has_type = 'type' in obj
+    has_combo = any(k in obj for k in ['anyOf', 'oneOf', 'allOf'])
+    has_ref = '$ref' in obj
     
-    # 类型映射表
-    type_mapping = {
-        'Map': 'object',
-        'HashMap': 'object',
-        'Dictionary': 'object',
-        'List': 'array',
-        'ArrayList': 'array',
-        'Array': 'array',
-        'Set': 'array',
-        'String': 'string',
-        'Int': 'integer',
-        'Integer': 'integer',
-        'Long': 'integer',
-        'Float': 'number',
-        'Double': 'number',
-        'Boolean': 'boolean',
-        'Bool': 'boolean',
-        'Any': 'string',  # 默认为 string
-        'Object': 'object',
-    }
-    
-    return type_mapping.get(type_value, 'string')
+    return has_type or has_combo or has_ref or len(obj) == 0
 
-def clean_description(description: str) -> str:
-    """清理描述中的无效内容"""
-    if not isinstance(description, str):
-        return description
+def sanitize_value(value):
+    """清理任何无效的值，确保它是有效的 JSON Schema 组件"""
+    # 如果是字符串或数字或布尔值，直接返回
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
     
-    # 移除类型标记如 Map<String, Any>
-    cleaned = re.sub(r'Map<[^>]+>', 'object', description)
-    cleaned = re.sub(r'List<[^>]+>', 'array', cleaned)
-    cleaned = re.sub(r'<[^>]+>', '', cleaned)
+    # 如果是列表，递归清理每个元素
+    if isinstance(value, list):
+        # 检查是否所有元素都是字符串（可能是错误的 enum 或 type）
+        if all(isinstance(item, str) for item in value):
+            # 这可能是一个合法的 enum 值，保留
+            return value
+        # 如果是 schema 列表（用于 anyOf 等），递归清理
+        return [sanitize_value(item) for item in value]
     
-    return cleaned.strip()
+    # 如果是字典，递归清理
+    if isinstance(value, dict):
+        return {k: sanitize_value(v) for k, v in value.items()}
+    
+    # 其他类型转为字符串
+    return str(value)
 
 def fix_property_schema(prop_schema: dict) -> dict:
-    """修复单个属性的 schema"""
+    """修复单个属性的 schema，确保符合 OpenAI API 要求"""
     if not isinstance(prop_schema, dict):
-        return prop_schema
+        return {"type": "string", "description": str(prop_schema)}
     
-    fixed = prop_schema.copy()
+    fixed = {}
     
-    # 1. 修复 type 字段
-    if "type" in fixed:
-        prop_type = fixed["type"]
-        
-        # 如果 type 是列表（无效格式），尝试修复
-        if isinstance(prop_type, list):
-            # 可能是错误地将 enum 放在了 type 字段
-            # 或者是包含多个类型，取第一个有效类型
-            if all(isinstance(t, str) for t in prop_type):
-                # 如果看起来像 enum 值，将其移到 enum 字段
-                valid_types = ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']
-                type_candidates = [t for t in prop_type if t in valid_types]
-                
-                if type_candidates:
-                    # 找到有效的 JSON Schema 类型
-                    fixed["type"] = type_candidates[0]
+    # 标准 JSON Schema 字段
+    VALID_FIELDS = {
+        'type', 'properties', 'items', 'required', 'enum', 'description',
+        'default', 'title', 'anyOf', 'oneOf', 'allOf', 'not',
+        'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'format',
+        'minItems', 'maxItems', 'uniqueItems', 'additionalProperties',
+        '$ref', 'const'
+    }
+    
+    # 只保留标准字段
+    for key, value in prop_schema.items():
+        if key not in VALID_FIELDS:
+            continue
+            
+        # 清理每个字段的值
+        if key == 'type':
+            # type 必须是字符串
+            if isinstance(value, str):
+                # 如果包含泛型或无效字符，规范化
+                if '<' in value or '>' in value or value not in ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']:
+                    type_clean = re.sub(r'<[^>]+>', '', value).strip()
+                    type_map = {'Map': 'object', 'List': 'array', 'String': 'string', 'Int': 'integer', 'Boolean': 'boolean', 'Any': 'string'}
+                    fixed[key] = type_map.get(type_clean, 'string')
                 else:
-                    # 都不是有效类型，可能是 enum 值，移到 enum 字段
-                    fixed["type"] = "string"
-                    if "enum" not in fixed:
-                        fixed["enum"] = prop_type
+                    fixed[key] = value
+            elif isinstance(value, list):
+                # type 是数组：取第一个有效类型，或当作 enum
+                valid_types = [t for t in value if t in ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']]
+                if valid_types:
+                    fixed[key] = valid_types[0]
+                else:
+                    fixed[key] = 'string'
+                    if 'enum' not in prop_schema:
+                        fixed['enum'] = value
             else:
-                # 无法识别的格式，默认为 string
-                fixed["type"] = "string"
-        
-        elif isinstance(prop_type, str):
-            # 检查是否包含无效的类型定义
-            if '<' in prop_type or '>' in prop_type or prop_type not in ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']:
-                fixed["type"] = normalize_type_value(prop_type)
-        
+                fixed[key] = 'string'
+                
+        elif key == 'description':
+            # description 必须是字符串
+            if isinstance(value, str):
+                cleaned = re.sub(r'<[^>]+>', '', value).strip()
+                fixed[key] = cleaned if cleaned else value
+            elif value:
+                fixed[key] = str(value)
+                
+        elif key == 'items':
+            # items 必须是对象
+            if isinstance(value, dict):
+                fixed[key] = fix_property_schema(value)
+            else:
+                fixed[key] = {"type": "string"}
+                
+        elif key == 'properties':
+            # properties 必须是对象字典
+            if isinstance(value, dict):
+                fixed[key] = {k: fix_property_schema(v) for k, v in value.items()}
+                
+        elif key in ['anyOf', 'oneOf', 'allOf']:
+            # 组合 schema 必须是数组
+            if isinstance(value, list):
+                fixed[key] = [fix_property_schema(item) if isinstance(item, dict) else {"type": "string"} for item in value]
+                
+        elif key == 'enum':
+            # enum 必须是数组
+            if isinstance(value, list):
+                fixed[key] = value
+                
         else:
-            # type 字段不是字符串也不是列表，使用默认值
-            fixed["type"] = "string"
+            # 其他标准字段，保持原样但清理
+            fixed[key] = sanitize_value(value)
     
-    # 2. 修复 description 字段
-    if "description" in fixed and isinstance(fixed["description"], str):
-        fixed["description"] = clean_description(fixed["description"])
+    # 确保有 type 或者组合 schema
+    if 'type' not in fixed and not any(k in fixed for k in ['anyOf', 'oneOf', 'allOf', '$ref']):
+        fixed['type'] = 'string'
     
-    # 3. 如果是数组类型但缺少 items，添加默认的 items
-    if fixed.get("type") == "array" and "items" not in fixed:
-        fixed["items"] = {"type": "string"}
-    
-    # 4. 递归处理嵌套的 items (数组元素)
-    if "items" in fixed and isinstance(fixed["items"], dict):
-        fixed["items"] = fix_property_schema(fixed["items"])
-    
-    # 5. 递归处理嵌套的 properties (对象属性)
-    if "properties" in fixed and isinstance(fixed["properties"], dict):
-        fixed["properties"] = fix_schema_properties(fixed["properties"])
-    
-    # 6. 递归处理组合 schema (anyOf, oneOf, allOf)
-    for combo_key in ['anyOf', 'oneOf', 'allOf']:
-        if combo_key in fixed and isinstance(fixed[combo_key], list):
-            fixed[combo_key] = [
-                fix_property_schema(item) if isinstance(item, dict) else item
-                for item in fixed[combo_key]
-            ]
-    
-    # 注意：不再删除任何字段，保持原始 schema 结构
-    # 只修复明确有问题的字段（type, items, description 等）
-    # 让 OpenAI API 自己处理不认识的字段
+    # 如果是数组但没有 items，添加默认 items
+    if fixed.get('type') == 'array' and 'items' not in fixed:
+        fixed['items'] = {"type": "string"}
     
     return fixed
 
-def fix_schema_properties(properties: dict) -> dict:
-    """修复所有属性的 schema"""
-    if not isinstance(properties, dict):
-        return properties
-    
-    fixed_properties = {}
-    for key, value in properties.items():
-        if isinstance(value, dict):
-            fixed_properties[key] = fix_property_schema(value)
-        else:
-            fixed_properties[key] = value
-    
-    return fixed_properties
-
 def tools_from_chaintlit_to_openai(chainlit_tools: list[dict]) -> dict:
     """将 Chainlit 工具转换为 OpenAI 格式，并修复常见的 schema 问题"""
-    import logging
     openai_tools = []
     
     for t in chainlit_tools:
         try:
-            parameters = t.inputSchema
+            parameters = t.inputSchema or {}
+            properties = parameters.get("properties", {})
             
-            # 修复参数 schema（包括类型规范化、数组 items、嵌套对象等）
-            fixed_properties = fix_schema_properties(parameters.get("properties", {}))
+            # 修复每个参数的 schema
+            fixed_properties = {}
+            for key, value in properties.items():
+                if isinstance(value, dict):
+                    fixed_properties[key] = fix_property_schema(value)
+                else:
+                    # 如果值不是字典，创建一个基本 schema
+                    fixed_properties[key] = {"type": "string", "description": str(value)}
             
-            # 清理工具描述
-            tool_description = t.description
-            if isinstance(tool_description, str):
-                tool_description = clean_description(tool_description)
+            # 清理描述
+            description = t.description or ""
+            if isinstance(description, str):
+                description = re.sub(r'<[^>]+>', '', description).strip()
             
-            tool_def = {
+            openai_tools.append({
                 "type": "function",
                 "function": {
                     "name": t.name,
-                    "description": tool_description,
+                    "description": description,
                     "parameters": {
                         "type": "object",
                         "properties": fixed_properties,
                         "required": parameters.get("required", [])
                     }
                 }
-            }
-            
-            # 调试：输出第一个工具的 schema
-            if t.name == "get_github_clones":
-                logging.info(f"Tool {t.name} properties: {fixed_properties}")
-            
-            openai_tools.append(tool_def)
+            })
             
         except Exception as e:
-            # 如果某个工具转换失败，记录错误但继续处理其他工具
+            import logging
             logging.error(f"Failed to convert tool {getattr(t, 'name', 'unknown')}: {e}", exc_info=True)
             continue
     
