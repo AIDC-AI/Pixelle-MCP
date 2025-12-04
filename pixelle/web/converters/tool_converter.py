@@ -46,6 +46,26 @@ def fix_property_schema(schema):
     # 深拷贝避免修改原始数据
     fixed = copy.deepcopy(schema)
     
+    # 定义哪些字段的值应该是数组
+    ARRAY_VALUE_FIELDS = {'enum', 'required', 'anyOf', 'oneOf', 'allOf', 'examples'}
+    
+    # 清理所有字段，移除无效的数组值
+    keys_to_check = list(fixed.keys())
+    for key in keys_to_check:
+        value = fixed[key]
+        
+        # 如果是数组，但不应该是数组的字段，转换或删除
+        if isinstance(value, list) and key not in ARRAY_VALUE_FIELDS and key != 'type':
+            # 如果是字符串数组，可能是误用的 enum
+            if key == 'default' or key == 'const':
+                # default 和 const 不应该是数组，删除
+                del fixed[key]
+            elif all(isinstance(item, str) for item in value):
+                # 其他字段如果是字符串数组，转为字符串或删除
+                del fixed[key]
+            else:
+                del fixed[key]
+    
     # 修复 type 字段
     if 'type' in fixed:
         fixed['type'] = fix_type_field(fixed['type'])
