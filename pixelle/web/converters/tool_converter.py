@@ -56,10 +56,36 @@ def fix_property_schema(prop_schema: dict) -> dict:
     # 1. 修复 type 字段
     if "type" in fixed:
         prop_type = fixed["type"]
-        if isinstance(prop_type, str):
+        
+        # 如果 type 是列表（无效格式），尝试修复
+        if isinstance(prop_type, list):
+            # 可能是错误地将 enum 放在了 type 字段
+            # 或者是包含多个类型，取第一个有效类型
+            if all(isinstance(t, str) for t in prop_type):
+                # 如果看起来像 enum 值，将其移到 enum 字段
+                valid_types = ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']
+                type_candidates = [t for t in prop_type if t in valid_types]
+                
+                if type_candidates:
+                    # 找到有效的 JSON Schema 类型
+                    fixed["type"] = type_candidates[0]
+                else:
+                    # 都不是有效类型，可能是 enum 值，移到 enum 字段
+                    fixed["type"] = "string"
+                    if "enum" not in fixed:
+                        fixed["enum"] = prop_type
+            else:
+                # 无法识别的格式，默认为 string
+                fixed["type"] = "string"
+        
+        elif isinstance(prop_type, str):
             # 检查是否包含无效的类型定义
             if '<' in prop_type or '>' in prop_type or prop_type not in ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']:
                 fixed["type"] = normalize_type_value(prop_type)
+        
+        else:
+            # type 字段不是字符串也不是列表，使用默认值
+            fixed["type"] = "string"
     
     # 2. 修复 description 字段
     if "description" in fixed and isinstance(fixed["description"], str):
@@ -76,6 +102,17 @@ def fix_property_schema(prop_schema: dict) -> dict:
     # 5. 递归处理嵌套的 properties (对象属性)
     if "properties" in fixed and isinstance(fixed["properties"], dict):
         fixed["properties"] = fix_schema_properties(fixed["properties"])
+    
+    # 6. 清理可能存在的无效字段
+    # 移除所有非标准 JSON Schema 字段中的列表值
+    for key in list(fixed.keys()):
+        if key not in ['type', 'properties', 'items', 'required', 'enum', 'description', 'default', 'title', 'examples']:
+            # 非标准字段，如果是列表或其他复杂类型，尝试转换为字符串描述
+            if isinstance(fixed[key], (list, dict)) and key != 'additionalProperties':
+                try:
+                    fixed[key] = str(fixed[key])
+                except:
+                    del fixed[key]
     
     return fixed
 
