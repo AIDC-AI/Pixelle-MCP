@@ -103,26 +103,17 @@ def fix_property_schema(prop_schema: dict) -> dict:
     if "properties" in fixed and isinstance(fixed["properties"], dict):
         fixed["properties"] = fix_schema_properties(fixed["properties"])
     
-    # 6. 保留合法的 JSON Schema 字段
-    # 定义所有标准的 JSON Schema 字段
-    valid_schema_fields = {
-        'type', 'properties', 'items', 'required', 'enum', 'description', 
-        'default', 'title', 'examples', 'additionalProperties', 
-        'minLength', 'maxLength', 'minimum', 'maximum', 'pattern', 'format',
-        'anyOf', 'oneOf', 'allOf', 'not',  # 组合 schema 字段（支持 Optional 等）
-        'const', 'multipleOf', 'exclusiveMinimum', 'exclusiveMaximum',
-        'minItems', 'maxItems', 'uniqueItems', 'minProperties', 'maxProperties',
-        '$ref', '$schema', 'definitions'  # 引用相关字段
-    }
+    # 6. 递归处理组合 schema (anyOf, oneOf, allOf)
+    for combo_key in ['anyOf', 'oneOf', 'allOf']:
+        if combo_key in fixed and isinstance(fixed[combo_key], list):
+            fixed[combo_key] = [
+                fix_property_schema(item) if isinstance(item, dict) else item
+                for item in fixed[combo_key]
+            ]
     
-    # 只删除非标准字段
-    keys_to_remove = []
-    for key in fixed.keys():
-        if key not in valid_schema_fields:
-            keys_to_remove.append(key)
-    
-    for key in keys_to_remove:
-        del fixed[key]
+    # 注意：不再删除任何字段，保持原始 schema 结构
+    # 只修复明确有问题的字段（type, items, description 等）
+    # 让 OpenAI API 自己处理不认识的字段
     
     return fixed
 
@@ -142,6 +133,7 @@ def fix_schema_properties(properties: dict) -> dict:
 
 def tools_from_chaintlit_to_openai(chainlit_tools: list[dict]) -> dict:
     """将 Chainlit 工具转换为 OpenAI 格式，并修复常见的 schema 问题"""
+    import logging
     openai_tools = []
     
     for t in chainlit_tools:
@@ -156,7 +148,7 @@ def tools_from_chaintlit_to_openai(chainlit_tools: list[dict]) -> dict:
             if isinstance(tool_description, str):
                 tool_description = clean_description(tool_description)
             
-            openai_tools.append({
+            tool_def = {
                 "type": "function",
                 "function": {
                     "name": t.name,
@@ -167,11 +159,17 @@ def tools_from_chaintlit_to_openai(chainlit_tools: list[dict]) -> dict:
                         "required": parameters.get("required", [])
                     }
                 }
-            })
+            }
+            
+            # 调试：输出第一个工具的 schema
+            if t.name == "get_github_clones":
+                logging.info(f"Tool {t.name} properties: {fixed_properties}")
+            
+            openai_tools.append(tool_def)
+            
         except Exception as e:
             # 如果某个工具转换失败，记录错误但继续处理其他工具
-            import logging
-            logging.error(f"Failed to convert tool {getattr(t, 'name', 'unknown')}: {e}")
+            logging.error(f"Failed to convert tool {getattr(t, 'name', 'unknown')}: {e}", exc_info=True)
             continue
     
     return openai_tools
