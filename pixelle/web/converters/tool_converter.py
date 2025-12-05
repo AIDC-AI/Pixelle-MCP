@@ -2,99 +2,132 @@
 # This project is licensed under the MIT License (SPDX-License-identifier: MIT).
 
 import re
-import copy
+import json
 
-def fix_type_field(type_value):
-    """修复 type 字段"""
-    if isinstance(type_value, str):
-        # 移除泛型标记
-        if '<' in type_value or '>' in type_value:
-            type_value = re.sub(r'<[^>]+>', '', type_value).strip()
-        
-        # 类型映射
-        type_map = {
-            'Map': 'object', 'HashMap': 'object', 'Dictionary': 'object',
-            'List': 'array', 'ArrayList': 'array', 'Array': 'array', 'Set': 'array',
-            'String': 'string', 'Int': 'integer', 'Integer': 'integer', 'Long': 'integer',
-            'Float': 'number', 'Double': 'number', 'Boolean': 'boolean', 'Bool': 'boolean',
-            'Any': 'string', 'Object': 'object'
-        }
-        
-        if type_value in type_map:
-            return type_map[type_value]
-        elif type_value in ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']:
-            return type_value
-        else:
-            return 'string'
+def is_valid_json_schema(obj):
+    """Check if the object is a valid JSON Schema"""
+    if not isinstance(obj, dict):
+        return False
     
-    elif isinstance(type_value, list):
-        # type 是列表，找第一个有效类型
-        valid_types = ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']
-        for t in type_value:
-            if t in valid_types:
-                return t
-        return 'string'
+    # Must have type or be a combined schema (anyOf/oneOf/allOf)
+    has_type = 'type' in obj
+    has_combo = any(k in obj for k in ['anyOf', 'oneOf', 'allOf'])
+    has_ref = '$ref' in obj
     
-    else:
-        return 'string'
+    return has_type or has_combo or has_ref or len(obj) == 0
 
-def fix_property_schema(schema):
-    """递归修复 property schema"""
-    if not isinstance(schema, dict):
-        return schema
+def sanitize_value(value):
+    """Clean any invalid values to ensure they are valid JSON Schema components"""
+    # If it's a string, number, or boolean, return directly
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
     
-    # 深拷贝避免修改原始数据
-    fixed = copy.deepcopy(schema)
+    # If it's a list, recursively clean each element
+    if isinstance(value, list):
+        # Check if all elements are strings (might be an incorrect enum or type)
+        if all(isinstance(item, str) for item in value):
+            # This might be a valid enum value, keep it
+            return value
+        # If it's a schema list (for anyOf, etc.), recursively clean
+        return [sanitize_value(item) for item in value]
     
-    # 定义哪些字段的值应该是数组
-    ARRAY_VALUE_FIELDS = {'enum', 'required', 'anyOf', 'oneOf', 'allOf', 'examples'}
+    # If it's a dictionary, recursively clean
+    if isinstance(value, dict):
+        return {k: sanitize_value(v) for k, v in value.items()}
     
-    # 清理所有字段，移除无效的数组值
-    keys_to_check = list(fixed.keys())
-    for key in keys_to_check:
-        value = fixed[key]
-        
-        # 如果是数组，但不应该是数组的字段，转换或删除
-        if isinstance(value, list) and key not in ARRAY_VALUE_FIELDS and key != 'type':
-            # 如果是字符串数组，可能是误用的 enum
-            if key == 'default' or key == 'const':
-                # default 和 const 不应该是数组，删除
-                del fixed[key]
-            elif all(isinstance(item, str) for item in value):
-                # 其他字段如果是字符串数组，转为字符串或删除
-                del fixed[key]
+    # Convert other types to string
+    return str(value)
+
+def fix_property_schema(prop_schema: dict) -> dict:
+    """Fix a single property's schema to ensure it complies with OpenAI API requirements"""
+    if not isinstance(prop_schema, dict):
+        return {"type": "string", "description": str(prop_schema)}
+    
+    fixed = {}
+    
+    # Standard JSON Schema fields
+    VALID_FIELDS = {
+        'type', 'properties', 'items', 'required', 'enum', 'description',
+        'default', 'title', 'anyOf', 'oneOf', 'allOf', 'not',
+        'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'format',
+        'minItems', 'maxItems', 'uniqueItems', 'additionalProperties',
+        '$ref', 'const'
+    }
+    
+    # Only keep standard fields
+    for key, value in prop_schema.items():
+        if key not in VALID_FIELDS:
+            continue
+            
+        # Clean the value of each field
+        if key == 'type':
+            # type must be a string
+            if isinstance(value, str):
+                # If it contains generics or invalid characters, normalize
+                if '<' in value or '>' in value or value not in ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']:
+                    type_clean = re.sub(r'<[^>]+>', '', value).strip()
+                    type_map = {'Map': 'object', 'List': 'array', 'String': 'string', 'Int': 'integer', 'Boolean': 'boolean', 'Any': 'string'}
+                    fixed[key] = type_map.get(type_clean, 'string')
+                else:
+                    fixed[key] = value
+            elif isinstance(value, list):
+                # type is an array: take the first valid type, or treat as enum
+                valid_types = [t for t in value if t in ['string', 'number', 'integer', 'boolean', 'array', 'object', 'null']]
+                if valid_types:
+                    fixed[key] = valid_types[0]
+                else:
+                    fixed[key] = 'string'
+                    if 'enum' not in prop_schema:
+                        fixed['enum'] = value
             else:
-                del fixed[key]
+                fixed[key] = 'string'
+                
+        elif key == 'description':
+            # description must be a string
+            if isinstance(value, str):
+                cleaned = re.sub(r'<[^>]+>', '', value).strip()
+                fixed[key] = cleaned if cleaned else value
+            elif value:
+                fixed[key] = str(value)
+                
+        elif key == 'items':
+            # items must be an object
+            if isinstance(value, dict):
+                fixed[key] = fix_property_schema(value)
+            else:
+                fixed[key] = {"type": "string"}
+                
+        elif key == 'properties':
+            # properties must be an object dictionary
+            if isinstance(value, dict):
+                fixed[key] = {k: fix_property_schema(v) for k, v in value.items()}
+                
+        elif key in ['anyOf', 'oneOf', 'allOf']:
+            # combined schema must be an array
+            if isinstance(value, list):
+                fixed[key] = [fix_property_schema(item) if isinstance(item, dict) else {"type": "string"} for item in value]
+                
+        elif key == 'enum':
+            # enum must be an array
+            if isinstance(value, list):
+                fixed[key] = value
+                
+        else:
+            # Other standard fields, keep as is but sanitize
+            fixed[key] = sanitize_value(value)
     
-    # 修复 type 字段
-    if 'type' in fixed:
-        fixed['type'] = fix_type_field(fixed['type'])
+    # Ensure there is a type or combined schema
+    if 'type' not in fixed and not any(k in fixed for k in ['anyOf', 'oneOf', 'allOf', '$ref']):
+        fixed['type'] = 'string'
     
-    # 修复 description 中的泛型标记
-    if 'description' in fixed and isinstance(fixed['description'], str):
-        fixed['description'] = re.sub(r'<[^>]+>', '', fixed['description'])
-    
-    # 数组必须有 items
+    # If it's an array without items, add default items
     if fixed.get('type') == 'array' and 'items' not in fixed:
-        fixed['items'] = {'type': 'string'}
-    
-    # 递归处理 items
-    if 'items' in fixed and isinstance(fixed['items'], dict):
-        fixed['items'] = fix_property_schema(fixed['items'])
-    
-    # 递归处理 properties
-    if 'properties' in fixed and isinstance(fixed['properties'], dict):
-        fixed['properties'] = {k: fix_property_schema(v) for k, v in fixed['properties'].items()}
-    
-    # 递归处理 anyOf/oneOf/allOf
-    for key in ['anyOf', 'oneOf', 'allOf']:
-        if key in fixed and isinstance(fixed[key], list):
-            fixed[key] = [fix_property_schema(item) if isinstance(item, dict) else item for item in fixed[key]]
+        fixed['items'] = {"type": "string"}
     
     return fixed
 
-def tools_from_chaintlit_to_openai(chainlit_tools: list[dict]) -> list:
-    """将 Chainlit 工具转换为 OpenAI 格式"""
+def tools_from_chaintlit_to_openai(chainlit_tools: list[dict]) -> dict:
+    """Convert Chainlit tools to OpenAI format and fix common schema issues"""
     openai_tools = []
     
     for t in chainlit_tools:
@@ -102,12 +135,16 @@ def tools_from_chaintlit_to_openai(chainlit_tools: list[dict]) -> list:
             parameters = t.inputSchema or {}
             properties = parameters.get("properties", {})
             
-            # 修复每个参数
+            # Fix the schema for each parameter
             fixed_properties = {}
             for key, value in properties.items():
-                fixed_properties[key] = fix_property_schema(value) if isinstance(value, dict) else value
+                if isinstance(value, dict):
+                    fixed_properties[key] = fix_property_schema(value)
+                else:
+                    # If the value is not a dictionary, create a basic schema
+                    fixed_properties[key] = {"type": "string", "description": str(value)}
             
-            # 修复描述
+            # Clean description
             description = t.description or ""
             if isinstance(description, str):
                 description = re.sub(r'<[^>]+>', '', description).strip()
@@ -116,7 +153,7 @@ def tools_from_chaintlit_to_openai(chainlit_tools: list[dict]) -> list:
                 "type": "function",
                 "function": {
                     "name": t.name,
-                    "description": description or "No description",
+                    "description": description,
                     "parameters": {
                         "type": "object",
                         "properties": fixed_properties,
