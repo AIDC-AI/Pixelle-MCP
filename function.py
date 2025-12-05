@@ -1,6 +1,7 @@
 from pydantic import Field
 from fastmcp import FastMCP
 import requests
+import os
 from typing import Optional
 from collections import Counter
 from datetime import datetime, timezone, timedelta
@@ -8,6 +9,9 @@ from datetime import datetime, timezone, timedelta
 
 mcp = FastMCP(name="github_info_mcp")
 BEIJING_TZ = timezone(timedelta(hours=8))
+
+# Get GitHub token from environment variable
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 
 @mcp.tool
 def get_github_clones(repo: Optional[str]=Field("repo_name",description="The repository to get the clones")) -> dict:
@@ -18,7 +22,7 @@ def get_github_clones(repo: Optional[str]=Field("repo_name",description="The rep
     url = f"https://api.github.com/repos/{repo}/traffic/clones"
     headers = {
         "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer ${GITHUB_TOKEN}",
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
         "X-GitHub-Api-Version": "2022-11-28"
     }
     response = requests.get(url, headers=headers)
@@ -35,7 +39,7 @@ def get_github_views(repo: Optional[str]=Field("repo_name",description="The repo
     url = f"https://api.github.com/repos/{repo}/traffic/views"
     headers = {
         "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer ${GITHUB_TOKEN}",
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
         "X-GitHub-Api-Version": "2022-11-28"
     }
     response = requests.get(url, headers=headers)
@@ -51,7 +55,7 @@ def get_github_stars(repo: Optional[str] = Field("repo_name", description="The r
     """
     headers = {
         "Accept": "application/vnd.github.star+json",
-        "Authorization": "Bearer ${GITHUB_TOKEN}",
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
         "X-GitHub-Api-Version": "2022-11-28"
     }
     
