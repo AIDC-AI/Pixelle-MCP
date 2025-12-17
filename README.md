@@ -1,3 +1,5 @@
+[![MSeeP.ai Security Assessment Badge](https://mseep.net/pr/aidc-ai-pixelle-mcp-badge.png)](https://mseep.ai/app/aidc-ai-pixelle-mcp)
+
 <h1 align="center">🎨 Pixelle MCP - Omnimodal Agent Framework</h1>
 
 <p align="center"><b>English</b> | <a href="README_CN.md">中文</a></p>
