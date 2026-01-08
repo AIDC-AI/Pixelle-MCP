@@ -13,6 +13,10 @@ import websockets
 from pixelle.comfyui.base_executor import ComfyUIExecutor, COMFYUI_API_KEY, logger
 from pixelle.comfyui.models import ExecuteResult
 
+# Define retry parameters
+MAX_RETRY_ATTEMPTS = 5
+RETRY_INTERVAL_SECONDS = 10
+
 
 class WebSocketExecutor(ComfyUIExecutor):
     """WebSocket executor for ComfyUI"""
@@ -225,153 +229,154 @@ class WebSocketExecutor(ComfyUIExecutor):
             collected_outputs = {}
             prompt_id = None
             
-            try:
-                # Prepare extra headers for WebSocket connection, include cookies
-                additional_headers = {}
-                cookies = await self._parse_comfyui_cookies()
-                if cookies:
-                    try:
-                        if isinstance(cookies, dict):
-                            cookie_string = "; ".join([f"{k}={v}" for k, v in cookies.items()])
-                        else:
-                            cookie_string = str(cookies)
-                        
-                        additional_headers["Cookie"] = cookie_string
-                        logger.debug(f"WebSocket connection will use cookies: {cookie_string[:50]}...")
-                    except Exception as e:
-                        logger.warning(f"Parse WebSocket cookies failed: {e}")
-                
-                # Establish WebSocket connection
-                async with websockets.connect(ws_url, additional_headers=additional_headers) as websocket:
-                    logger.info('WebSocket connection established, now submit workflow')
-                    
-                    # After connection established, immediately submit workflow
-                    try:
-                        prompt_id = await self._queue_prompt(workflow_data, client_id, prompt_ext_params)
-                    except Exception as e:
-                        error_message = f"Submit workflow failed: [{type(e)}] {str(e)}"
-                        logger.error(error_message)
-                        return ExecuteResult(status="error", msg=error_message)
-                    
-                    logger.info(f"Workflow submitted, prompt_id: {prompt_id}, now wait for result")
-                    
-                    while True:
-                        # Check timeout
-                        elapsed = time.time() - start_time
-                        if elapsed > timeout:
-                            logger.warning(f"WebSocket timeout ({timeout} seconds)")
-                            result = ExecuteResult(
-                                status="timeout",
-                                prompt_id=prompt_id,
-                                msg=f"WebSocket timeout ({timeout} seconds)",
-                                duration=elapsed
-                            )
-                            return result
-                        
+            retry_attempts = 0
+            while retry_attempts < MAX_RETRY_ATTEMPTS:
+                try:
+                    # Prepare extra headers for WebSocket connection, include cookies
+                    additional_headers = {}
+                    cookies = await self._parse_comfyui_cookies()
+                    if cookies:
                         try:
-                            # Wait for message, set shorter timeout to check total timeout
-                            message_str = await asyncio.wait_for(websocket.recv(), timeout=3.0)
-                            
-                            if not isinstance(message_str, str):
-                                continue
-                                
-                            message = json.loads(message_str)
-                            
-                            # Print full message for target prompt_id for debugging
-                            if message.get('data', {}).get('prompt_id') == prompt_id:
-                                logger.debug(f'Received target WebSocket message (prompt_id: {prompt_id}): {json.dumps(message, ensure_ascii=False)}')
-                                
-                                # Process different types of messages
-                                msg_type = message.get('type')
-                                data = message.get('data', {})
-                                
-                                if msg_type == 'execution_cached':
-                                    # Process cached execution message
-                                    cached_nodes = data.get('nodes', [])
-                                    logger.debug(f"Detected cached execution, skip nodes: {cached_nodes}")
-                                    
-                                elif msg_type == 'executed':
-                                    # Collect nodes with outputs
-                                    node_id = data.get('node')
-                                    output = data.get('output')
-                                    if output and node_id:
-                                        # Check if there are outputs we are interested in
-                                        has_media = output.get('images') \
-                                            or output.get('gifs') \
-                                            or output.get('audio') \
-                                            or output.get('text')
-                                        if has_media:
-                                            logger.info(f"Collected outputs from node {node_id}")
-                                            collected_outputs[node_id] = output
-                                            
-                                elif msg_type == 'execution_error':
-                                    # Process execution error
-                                    error_message = data.get('exception_message', 'Unknown error')
-                                    logger.error(f"Execution error: {error_message}")
-                                    return ExecuteResult(
-                                        status="error",
-                                        prompt_id=prompt_id,
-                                        msg=error_message,
-                                        duration=time.time() - start_time
-                                    )
+                            if isinstance(cookies, dict):
+                                cookie_string = "; ".join([f"{k}={v}" for k, v in cookies.items()])
                             else:
-                                # For status message, record queue status
-                                if message.get('type') == 'status':
-                                    queue_remaining = message.get('data', {}).get('status', {}).get('exec_info', {}).get('queue_remaining', 'unknown')
-                                    logger.debug(f'Queue status updated: remaining tasks {queue_remaining} ')
+                                cookie_string = str(cookies)
+                            
+                            additional_headers["Cookie"] = cookie_string
+                            logger.debug(f"WebSocket connection will use cookies: {cookie_string[:50]}...")
+                        except Exception as e:
+                            logger.warning(f"Parse WebSocket cookies failed: {e}")
+                    
+                    # Establish WebSocket connection
+                    async with websockets.connect(ws_url, additional_headers=additional_headers) as websocket:
+                        logger.info('WebSocket connection established, now submit workflow')
+                        
+                        # After connection established, immediately submit workflow
+                        try:
+                            prompt_id = await self._queue_prompt(workflow_data, client_id, prompt_ext_params)
+                        except Exception as e:
+                            error_message = f"Submit workflow failed: [{type(e)}] {str(e)}"
+                            logger.error(error_message)
+                            return ExecuteResult(status="error", msg=error_message)
+                        
+                        logger.info(f"Workflow submitted, prompt_id: {prompt_id}, now wait for result")
+                        
+                        while True:
+                            # Check timeout
+                            elapsed = time.time() - start_time
+                            if elapsed > timeout:
+                                logger.warning(f"WebSocket timeout ({timeout} seconds)")
+                                result = ExecuteResult(
+                                    status="timeout",
+                                    prompt_id=prompt_id,
+                                    msg=f"WebSocket timeout ({timeout} seconds)",
+                                    duration=elapsed
+                                )
+                                return result
+                            
+                            try:
+                                # Wait for message, set shorter timeout to check total timeout
+                                message_str = await asyncio.wait_for(websocket.recv(), timeout=3.0)
+                                
+                                if not isinstance(message_str, str):
+                                    continue
+                                    
+                                message = json.loads(message_str)
+                                
+                                # Print full message for target prompt_id for debugging
+                                if message.get('data', {}).get('prompt_id') == prompt_id:
+                                    logger.debug(f'Received target WebSocket message (prompt_id: {prompt_id}): {json.dumps(message, ensure_ascii=False)}')
+                                    
+                                    # Process different types of messages
+                                    msg_type = message.get('type')
+                                    data = message.get('data', {})
+                                    
+                                    if msg_type == 'execution_cached':
+                                        # Process cached execution message
+                                        cached_nodes = data.get('nodes', [])
+                                        logger.debug(f"Detected cached execution, skip nodes: {cached_nodes}")
+                                        
+                                    elif msg_type == 'executed':
+                                        # Collect nodes with outputs
+                                        node_id = data.get('node')
+                                        output = data.get('output')
+                                        if output and node_id:
+                                            # Check if there are outputs we are interested in
+                                            has_media = output.get('images') \
+                                                or output.get('gifs') \
+                                                or output.get('audio') \
+                                                or output.get('text')
+                                            if has_media:
+                                                logger.info(f"Collected outputs from node {node_id}")
+                                                collected_outputs[node_id] = output
+                                                
+                                    elif msg_type == 'execution_error':
+                                        # Process execution error
+                                        error_message = data.get('exception_message', 'Unknown error')
+                                        logger.error(f"Execution error: {error_message}")
+                                        return ExecuteResult(
+                                            status="error",
+                                            prompt_id=prompt_id,
+                                            msg=error_message,
+                                            duration=time.time() - start_time
+                                        )
                                 else:
-                                    logger.debug(f'Received other WebSocket message: {message}')
-                            
-                            # Parse message
-                            invoke_completed, parsed_message = self._parse_ws_message(message, prompt_id)
-                            
-                            if invoke_completed:
-                                logger.info('WebSocket detected execution completed')
+                                    # For status message, record queue status
+                                    if message.get('type') == 'status':
+                                        queue_remaining = message.get('data', {}).get('status', {}).get('exec_info', {}).get('queue_remaining', 'unknown')
+                                        logger.debug(f'Queue status updated: remaining tasks {queue_remaining} ')
+                                    else:
+                                        logger.debug(f'Received other WebSocket message: {message}')
                                 
-                                # Set execution duration
-                                duration = time.time() - start_time
+                                # Parse message
+                                invoke_completed, parsed_message = self._parse_ws_message(message, prompt_id)
                                 
-                                # If there are collected outputs, use them to build result
-                                if collected_outputs:
-                                    result = self._build_result_from_collected_outputs(collected_outputs, prompt_id, output_id_2_var)
-                                    result.duration = duration
-                                    # Transfer result files
-                                    result = await self.transfer_result_files(result)
-                                    return result
-                                else:
-                                    # WebSocket way did not collect any outputs, return error
-                                    logger.warning("WebSocket did not collect any outputs")
-                                    result = ExecuteResult(
-                                        status="error",
-                                        prompt_id=prompt_id,
-                                        msg="WebSocket did not collect any outputs",
-                                        duration=duration
-                                    )
-                                    return result
+                                if invoke_completed:
+                                    logger.info('WebSocket detected execution completed')
+                                    
+                                    # Set execution duration
+                                    duration = time.time() - start_time
+                                    
+                                    # If there are collected outputs, use them to build result
+                                    if collected_outputs:
+                                        result = self._build_result_from_collected_outputs(collected_outputs, prompt_id, output_id_2_var)
+                                        result.duration = duration
+                                        # Transfer result files
+                                        result = await self.transfer_result_files(result)
+                                        return result
+                                    else:
+                                        # WebSocket way did not collect any outputs, return error
+                                        logger.warning("WebSocket did not collect any outputs")
+                                        result = ExecuteResult(
+                                            status="error",
+                                            prompt_id=prompt_id,
+                                            msg="WebSocket did not collect any outputs",
+                                            duration=duration
+                                        )
+                                        return result
+                                    
+                            except asyncio.TimeoutError:
+                                # Wait for message timeout, continue loop to check total timeout
+                                continue
+                            except websockets.exceptions.ConnectionClosed:
+                                logger.warning("WebSocket connection closed")
+                                raise # Re-raise to trigger retry logic
                                 
-                        except asyncio.TimeoutError:
-                            # Wait for message timeout, continue loop to check total timeout
-                            continue
-                        except websockets.exceptions.ConnectionClosed:
-                            logger.warning("WebSocket connection closed")
-                            result = ExecuteResult(
-                                status="error",
-                                prompt_id=prompt_id,
-                                msg="WebSocket connection closed",
-                                duration=time.time() - start_time
-                            )
-                            return result
-                            
-            except Exception as e:
-                logger.error(f"WebSocket connection or execution exception: {str(e)}")
-                result = ExecuteResult(
-                    status="error",
-                    prompt_id=prompt_id,
-                    msg=f"WebSocket connection or execution exception: {str(e)}",
-                    duration=time.time() - start_time
-                )
-                return result
-                
+                except Exception as e:
+                    logger.error(f"WebSocket connection or execution exception: {str(e)}")
+                    retry_attempts += 1
+                    if retry_attempts < MAX_RETRY_ATTEMPTS:
+                        logger.info(f"Retrying WebSocket connection in {RETRY_INTERVAL_SECONDS} seconds... (Attempt {retry_attempts}/{MAX_RETRY_ATTEMPTS})")
+                        await asyncio.sleep(RETRY_INTERVAL_SECONDS)
+                    else:
+                        result = ExecuteResult(
+                            status="error",
+                            prompt_id=prompt_id,
+                            msg=f"WebSocket connection or execution exception after {MAX_RETRY_ATTEMPTS} retries: {str(e)}",
+                            duration=time.time() - start_time
+                        )
+                        return result
+            
         except Exception as e:
             logger.error(f"Execute workflow failed: {str(e)}", exc_info=True)
-            return ExecuteResult(status="error", msg=str(e)) 
+            return ExecuteResult(status="error", msg=str(e))
