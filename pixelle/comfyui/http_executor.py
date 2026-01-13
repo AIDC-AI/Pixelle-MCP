@@ -6,6 +6,7 @@ import json
 import time
 import uuid
 import asyncio
+import copy
 from typing import Optional, Dict, Any
 
 from pixelle.comfyui.base_executor import ComfyUIExecutor, COMFYUI_API_KEY, logger
