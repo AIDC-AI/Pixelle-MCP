@@ -259,7 +259,7 @@ class HttpExecutor(ComfyUIExecutor):
                 start_wait = time.time()
                 while True:
                     # Timeout Schutz (z.B. 20 Minuten)
-                    if time.time() - start_wait > 1200:
+                    if time.time() - start_wait > 10800:
                         raise Exception("Global Timeout")
 
                     # Prüfen: Ist der Task noch da?
