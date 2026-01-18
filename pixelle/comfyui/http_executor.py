@@ -221,10 +221,10 @@ class HttpExecutor(ComfyUIExecutor):
         except Exception as e:
             return f"\n(Logs konnten nicht geladen werden: {e})"
 
-    async def execute_workflow(self, workflow_file: str, params: Dict[str, Any] = None) -> ExecuteResult:
+async def execute_workflow(self, workflow_file: str, params: Dict[str, Any] = None) -> ExecuteResult:
         """Execute workflow mit Auto-Retry bei Server-Absturz"""
         
-        # --- LADE WORKFLOW DATEN (Nur einmal am Anfang) ---
+        # --- LADE WORKFLOW DATEN ---
         if not os.path.exists(workflow_file):
             return ExecuteResult(status="error", msg=f"Workflow file missing")
         
@@ -238,12 +238,14 @@ class HttpExecutor(ComfyUIExecutor):
         workflow_data = await self._apply_params_to_workflow(original_workflow_data, metadata, params or {})
         output_id_2_var = self._extract_output_nodes(metadata)
         
-        # --- RETRY SCHLEIFE STARTET HIER ---
-        max_retries = 5  # Wie oft soll er es versuchen?
+        # --- RETRY SCHLEIFE ---
+        max_retries = 5
         current_try = 0
         
         while current_try < max_retries:
             current_try += 1
+            prompt_id = None # Reset prompt_id
+            
             try:
                 # Seed neu würfeln bei jedem Versuch
                 workflow_to_send, _ = self._randomize_seed_in_workflow(copy.deepcopy(workflow_data))
@@ -259,14 +261,13 @@ class HttpExecutor(ComfyUIExecutor):
                     prompt_id = await self._queue_prompt(workflow_to_send, client_id, prompt_ext_params)
                 except Exception as e:
                     logger.warning(f"Konnte nicht senden (Server down?): {e}")
-                    await asyncio.sleep(5) # Warte 5s bevor wir es nochmal probieren
+                    await asyncio.sleep(5)
                     continue 
 
                 # 2. Warten mit intelligenter Überwachung
-                # Wir bauen hier eine eigene Warteschleife statt _wait_for_results blind zu vertrauen
                 start_wait = time.time()
                 while True:
-                    # Timeout Schutz (z.B. 20 Minuten)
+                    # Timeout Schutz (z.B. 20 Minuten = 1200 Sekunden)
                     if time.time() - start_wait > 1200:
                         raise Exception("Global Timeout")
 
@@ -278,44 +279,41 @@ class HttpExecutor(ComfyUIExecutor):
                         logger.warning(f"⚠️ Task {prompt_id} ist verschwunden! Server-Neustart vermutet. Starte Retry...")
                         break # Bricht die innere Warte-Schleife ab -> springt zum nächsten 'while current_try' Loop
                     
-                    # Prüfen: Ist er fertig? (Standard Check)
+                    # Prüfen: Ist er fertig?
                     try:
-                        # Hier rufen wir kurz die originale Logik auf, aber mit kurzem Timeout
-                        # Wir nutzen _wait_for_results mit 1 Sekunde Timeout nur zum Checken
+                        # Wir fragen den Status mit kurzem Timeout (1s) ab
+                        result = await self._wait_for_results(prompt_id, client_id, timeout=1, output_id_2_var=output_id_2_var)
+                        
                         if result.status == "completed":
-                            # 1. Dateien übertragen (URLs fixen)
+                            # 1. Dateien übertragen
                             final_result = await self.transfer_result_files(result)
                             
-                            # 2. Logs holen und anhängen (Dein neuer Code)
+                            # 2. Logs holen und anhängen
                             try:
-                                # Wir nutzen die neue Hilfsfunktion (falls du sie _get_formatted_logs genannt hast)
-                                # Falls du die SSH-Variante nutzt, heißt sie vielleicht anders, 
-                                # aber hier gehen wir vom lokalen File-Read aus, den du vorhin wolltest.
-                                # Wenn du das SSH-Tool als separates Tool hast, brauchst du das hier eigentlich gar nicht!
-                                # Aber falls du die automatischen Logs willst:
                                 logs_html = self._get_formatted_logs(lines=30)
-                                
-                                # An die Text-Liste anhängen
                                 if final_result.texts:
                                     final_result.texts.append(logs_html)
                                 else:
                                     final_result.texts = [logs_html]
                             except Exception:
-                                pass # Falls Logs scheitern, trotzdem Bild zurückgeben!
+                                pass 
 
-                            # 3. Fertiges Ergebnis zurückgeben
                             return final_result
                         
-                        if result.status == "completed":
-                            # Erfolg! Dateien übertragen und raus hier.
-                            return await self.transfer_result_files(result)
                         elif result.status == "error":
                             return result # Echter Workflow Fehler, kein Retry
                             
-                    except Exception:
-                        pass # Timeout bei wait_for_results ist okay, wir loopen ja selbst
+                        elif result.status == "timeout":
+                            # Das ist gut! Der Task läuft noch, wir warten einfach weiter.
+                            pass 
+                            
+                    except Exception as e:
+                        # Fehler beim Abrufen des Status (z.B. Netzwerk-Hiccup), wir warten kurz und versuchen es nochmal
+                        logger.debug(f"Fehler beim Status-Check: {e}")
+                        pass
                     
-                    await asyncio.sleep(2) # Kurz warten vor nächstem Check
+                    # Kurze Pause vor dem nächsten Check
+                    await asyncio.sleep(2)
 
             except Exception as e:
                 logger.error(f"Fehler im Versuch {current_try}: {e}")
