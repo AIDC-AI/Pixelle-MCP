@@ -68,7 +68,7 @@ class HttpExecutor(ComfyUIExecutor):
             if timeout is not None and timeout > 0:
                 duration = time.time() - start_time
                 if duration > timeout:
-                    logger.warning(f"Timeout: {duration} seconds")
+                    # logger.warning(f"Timeout: {duration} seconds") # Optional logging
                     result.status = "timeout"
                     result.duration = duration
                     return result
@@ -159,12 +159,11 @@ class HttpExecutor(ComfyUIExecutor):
         """Prüft, ob ein Task noch existiert (Queue oder History)"""
         try:
             # 1. Prüfen ob ComfyUI überhaupt antwortet (Server Check)
-            # Wir nutzen hier system_stats für einen schnellen Ping
             stats_url = f"{self.base_url}/system_stats"
             async with self.get_comfyui_session() as session:
                 async with session.get(stats_url, timeout=2) as response:
                     if response.status != 200:
-                        return False # Server ist wohl down/startet neu
+                        return False # Server ist wohl down
 
             # 2. Prüfen ob Task in der Queue ist (Running oder Pending)
             queue_url = f"{self.base_url}/queue"
@@ -172,7 +171,6 @@ class HttpExecutor(ComfyUIExecutor):
                 async with session.get(queue_url) as response:
                     if response.status == 200:
                         queue_data = await response.json()
-                        # ComfyUI Queue Format: [ticket_id, prompt_id, ...]
                         for task in queue_data.get("queue_running", []):
                             if task[1] == prompt_id: return True
                         for task in queue_data.get("queue_pending", []):
@@ -186,29 +184,24 @@ class HttpExecutor(ComfyUIExecutor):
                         hist = await response.json()
                         if prompt_id in hist: return True
             
-            # Wenn er NIRGENDS ist, hat der Server ihn vergessen (Absturz/Neustart)
             return False
         except Exception as e:
-            # Bei Netzwerkfehlern gehen wir davon aus, dass er down ist
             return False
 
 
-    # Neue Hilfsmethode zum Lesen der letzten Logs
     def _get_formatted_logs(self, lines=20) -> str:
+        """Liest die letzten Zeilen des Logs für die Anzeige"""
         try:
             from pixelle.logger import LOG_FILE
             if not os.path.exists(LOG_FILE):
                 return ""
             
-            # Die letzten N Zeilen lesen
             with open(LOG_FILE, 'r', encoding='utf-8') as f:
-                # Einfacher Trick für die letzten Zeilen bei kleinen Files
                 all_lines = f.readlines()
                 last_lines = all_lines[-lines:]
             
             log_content = "".join(last_lines).replace("<", "&lt;").replace(">", "&gt;")
             
-            # HTML Details Tag für das "Aufklappen"
             return f"""
 \n\n
 <details>
@@ -221,7 +214,7 @@ class HttpExecutor(ComfyUIExecutor):
         except Exception as e:
             return f"\n(Logs konnten nicht geladen werden: {e})"
 
-async def execute_workflow(self, workflow_file: str, params: Dict[str, Any] = None) -> ExecuteResult:
+    async def execute_workflow(self, workflow_file: str, params: Dict[str, Any] = None) -> ExecuteResult:
         """Execute workflow mit Auto-Retry bei Server-Absturz"""
         
         # --- LADE WORKFLOW DATEN ---
@@ -244,8 +237,6 @@ async def execute_workflow(self, workflow_file: str, params: Dict[str, Any] = No
         
         while current_try < max_retries:
             current_try += 1
-            prompt_id = None # Reset prompt_id
-            
             try:
                 # Seed neu würfeln bei jedem Versuch
                 workflow_to_send, _ = self._randomize_seed_in_workflow(copy.deepcopy(workflow_data))
@@ -267,7 +258,7 @@ async def execute_workflow(self, workflow_file: str, params: Dict[str, Any] = No
                 # 2. Warten mit intelligenter Überwachung
                 start_wait = time.time()
                 while True:
-                    # Timeout Schutz (z.B. 20 Minuten = 1200 Sekunden)
+                    # Timeout Schutz (z.B. 20 Minuten)
                     if time.time() - start_wait > 1200:
                         raise Exception("Global Timeout")
 
@@ -275,13 +266,13 @@ async def execute_workflow(self, workflow_file: str, params: Dict[str, Any] = No
                     is_active = await self._is_task_active(prompt_id)
                     
                     if not is_active:
-                        # ALARM: Task ist weg! Server war wohl down.
+                        # ALARM: Task ist weg -> Retry
                         logger.warning(f"⚠️ Task {prompt_id} ist verschwunden! Server-Neustart vermutet. Starte Retry...")
-                        break # Bricht die innere Warte-Schleife ab -> springt zum nächsten 'while current_try' Loop
+                        break 
                     
                     # Prüfen: Ist er fertig?
                     try:
-                        # Wir fragen den Status mit kurzem Timeout (1s) ab
+                        # Ergebnis abrufen, bevor wir es prüfen
                         result = await self._wait_for_results(prompt_id, client_id, timeout=1, output_id_2_var=output_id_2_var)
                         
                         if result.status == "completed":
@@ -296,23 +287,18 @@ async def execute_workflow(self, workflow_file: str, params: Dict[str, Any] = No
                                 else:
                                     final_result.texts = [logs_html]
                             except Exception:
-                                pass 
+                                pass
 
+                            # 3. Fertig
                             return final_result
                         
                         elif result.status == "error":
-                            return result # Echter Workflow Fehler, kein Retry
+                            return result # Echter Fehler, kein Retry
                             
-                        elif result.status == "timeout":
-                            # Das ist gut! Der Task läuft noch, wir warten einfach weiter.
-                            pass 
-                            
-                    except Exception as e:
-                        # Fehler beim Abrufen des Status (z.B. Netzwerk-Hiccup), wir warten kurz und versuchen es nochmal
-                        logger.debug(f"Fehler beim Status-Check: {e}")
-                        pass
+                    except Exception:
+                        # Noch nicht fertig oder Timeout beim Check -> weitermachen
+                        pass 
                     
-                    # Kurze Pause vor dem nächsten Check
                     await asyncio.sleep(2)
 
             except Exception as e:
