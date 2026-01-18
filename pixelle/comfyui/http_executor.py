@@ -232,7 +232,7 @@ class HttpExecutor(ComfyUIExecutor):
         output_id_2_var = self._extract_output_nodes(metadata)
         
         # --- RETRY SCHLEIFE ---
-        max_retries = 5
+        max_retries = 2
         current_try = 0
         
         while current_try < max_retries:
