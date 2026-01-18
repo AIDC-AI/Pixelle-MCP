@@ -280,14 +280,14 @@ class HttpExecutor(ComfyUIExecutor):
                             final_result = await self.transfer_result_files(result)
                             
                             # 2. Logs holen und anhängen
-                            try:
-                                logs_html = self._get_formatted_logs(lines=30)
-                                if final_result.texts:
-                                    final_result.texts.append(logs_html)
-                                else:
-                                    final_result.texts = [logs_html]
-                            except Exception:
-                                pass
+                           # try:
+                            #    logs_html = self._get_formatted_logs(lines=30)
+                            #    if final_result.texts:
+                            #        final_result.texts.append(logs_html)
+                             #   else:
+                             #       final_result.texts = [logs_html]
+                          #  except Exception:
+                             pass
 
                             # 3. Fertig
                             return final_result
