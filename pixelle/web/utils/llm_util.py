@@ -26,6 +26,16 @@ logger.info(f"OPENAI_BASE_URL: {OPENAI_BASE_URL}")
 logger.info(f"OPENAI_API_KEY: {OPENAI_API_KEY}")
 logger.info(f"Found {len(openai_models)} OpenAI models: {openai_models}")
 
+# LM Studio config (treated as OpenAI compatible)
+LMSTUDIO_BASE_URL = settings.lmstudio_base_url
+LMSTUDIO_MODELS = settings.lmstudio_models
+LMSTUDIO_API_KEY = "lmstudio"
+lmstudio_models = [model.strip() for model in LMSTUDIO_MODELS.split(",") if model.strip()]
+if lmstudio_models and not LMSTUDIO_BASE_URL:
+    lmstudio_models.clear()
+    logger.warning("No LM Studio base URL found, ignore LM Studio models, you can set `LMSTUDIO_BASE_URL` in `.env` to enable LM Studio models")
+logger.info(f"LMSTUDIO_BASE_URL: {LMSTUDIO_BASE_URL}")
+logger.info(f"Found {len(lmstudio_models)} LM Studio models: {lmstudio_models}")
 
 # Ollama config
 OLLAMA_BASE_URL = settings.ollama_base_url
@@ -99,16 +109,18 @@ if not any([
     deepseek_models,
     claude_models,
     qwen_models,
+    lmstudio_models
 ]):
     raise ValueError(
         "Configuration Error: No models configured; please set at least one model in `.env` "
-        "(OpenAI, Ollama, Gemini, DeepSeek, Claude, or Qwen)."
+        "(OpenAI, LM Studio, Ollama, Gemini, DeepSeek, Claude, or Qwen)."
     )
 
 
 
 class ModelType(Enum):
     OPENAI = "openai"
+    LMSTUDIO = "lmstudio"
     OLLAMA = "ollama"
     GEMINI = "gemini"
     DEEPSEEK = "deepseek"
@@ -138,6 +150,19 @@ def get_openai_models() -> list[ModelInfo]:
             model=model
         )
         for model in openai_models
+    ]
+
+def get_lmstudio_models() -> list[ModelInfo]:
+    return [
+        ModelInfo(
+            type=ModelType.LMSTUDIO,
+            name=model,
+            base_url=LMSTUDIO_BASE_URL,
+            api_key=LMSTUDIO_API_KEY,
+            provider="openai",
+            model=model
+        )
+        for model in lmstudio_models
     ]
 
 def get_ollama_models() -> list[ModelInfo]:

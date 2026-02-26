@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.openai.com/v1"
     openai_api_key: str = ""
     chainlit_chat_openai_models: str = "gpt-4o-mini"
+
+    # LM Studio
+    lmstudio_base_url: str = "http://localhost:1234/v1"
+    lmstudio_models: str = ""
     
     # Ollama
     ollama_base_url: str = "http://localhost:11434/v1"
@@ -89,6 +93,8 @@ class Settings(BaseSettings):
         providers = []
         if self.openai_api_key:
             providers.append("openai")
+        if self.lmstudio_models:
+            providers.append("lmstudio")
         if self.ollama_models:
             providers.append("ollama") 
         if self.gemini_api_key:
@@ -107,7 +113,10 @@ class Settings(BaseSettings):
         
         if self.openai_api_key and self.chainlit_chat_openai_models:
             models.extend([m.strip() for m in self.chainlit_chat_openai_models.split(",") if m.strip()])
-        
+
+        if self.lmstudio_models:
+            models.extend([m.strip() for m in self.lmstudio_models.split(",") if m.strip()])
+
         if self.ollama_models:
             models.extend([m.strip() for m in self.ollama_models.split(",") if m.strip()])
             
