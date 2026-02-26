@@ -59,6 +59,17 @@ def test_ollama_connection(base_url: str) -> bool:
     except Exception:
         return False
 
+def test_lmstudio_connection(base_url: str) -> bool:
+    """Test LM Studio connectivity using /v1/models endpoint.
+
+    Accepts either base_url with or without "/v1" suffix.
+    """
+    try:
+        test_url = base_url.replace("/v1", "")
+        response = requests.get(f"{test_url}/api/v1/models", timeout=5)
+        return response.status_code == 200
+    except Exception:
+        return False
 
 def get_openai_models(api_key: str, base_url: str) -> List[str]:
     """Fetch available OpenAI(-compatible) models; returns deduplicated list in original order.
@@ -97,3 +108,14 @@ def get_ollama_models(base_url: str) -> List[str]:
     return []
 
 
+def get_lmstudio_models(base_url: str) -> List[str]:
+    """Fetch available Ollama models from /api/tags; returns list of names."""
+    try:
+        test_url = base_url.replace("/v1", "")
+        response = requests.get(f"{test_url}/v1/models", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return [model.get("id", "") for model in data.get("data", [])]
+    except Exception:
+        pass
+    return []

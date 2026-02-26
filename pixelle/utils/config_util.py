@@ -24,6 +24,7 @@ def has_minimal_llm_config(env_vars: Dict[str, str]) -> bool:
     """Return True if any known LLM provider key is present and non-empty."""
     llm_keys = (
         "OPENAI_API_KEY",
+        "LMSTUDIO_BASE_URL",
         "OLLAMA_BASE_URL",
         "GEMINI_API_KEY",
         "DEEPSEEK_API_KEY",
@@ -145,6 +146,14 @@ def build_env_lines(
                 f"OPENAI_API_KEY=\"{llm_config['api_key']}\"",
                 "# List OpenAI models to be used, if multiple, separate with English commas",
                 f"CHAINLIT_CHAT_OPENAI_MODELS=\"{llm_config.get('models', 'gpt-4o-mini')}\"",
+                "",
+            ])
+        elif provider == "LMSTUDIO":
+            env_lines.extend([
+                "# LM Studio configuration (treated as OpenAI compatible)",
+                f"LMSTUDIO_BASE_URL=\"{llm_config.get('base_url', 'http://localhost:1234/v1')}\"",
+                "# List LM Studio models to be used, if multiple, separate with English commas",
+                f"LMSTUDIO_MODELS=\"{llm_config.get('models', '')}\"",
                 "",
             ])
         elif provider == "OLLAMA":

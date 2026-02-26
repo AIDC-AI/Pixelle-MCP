@@ -14,6 +14,7 @@ from pixelle.cli.setup.providers.gemini import configure_gemini
 from pixelle.cli.setup.providers.deepseek import configure_deepseek
 from pixelle.cli.setup.providers.claude import configure_claude
 from pixelle.cli.setup.providers.qwen import configure_qwen
+from pixelle.cli.setup.providers.lmstudio import configure_lmstudio
 
 console = Console()
 
@@ -23,6 +24,8 @@ def configure_specific_llm(provider: str) -> Optional[Dict]:
     
     if provider == "openai":
         return configure_openai()
+    elif provider == "lmstudio":
+        return configure_lmstudio()
     elif provider == "ollama":
         return configure_ollama()
     elif provider == "gemini":
@@ -56,6 +59,7 @@ def setup_multiple_llm_providers() -> Optional[List[Dict]]:
         # Show available providers
         available_providers = [
             questionary.Choice("🔥 OpenAI (recommended) - GPT-4, GPT-3.5, etc.", "openai"),
+            questionary.Choice("🎨 LM Studio - Local deployment, supports various models", "lmstudio"),
             questionary.Choice("🏠 Ollama (local) - Free local model", "ollama"),
             questionary.Choice("💎 Google Gemini - Google latest model", "gemini"),
             questionary.Choice("🚀 DeepSeek - High-performance code model", "deepseek"),
