@@ -339,3 +339,8 @@ This project is released under the MIT License ([LICENSE](LICENSE), SPDX-License
 ## ⭐ Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=AIDC-AI/Pixelle-MCP&type=Date)](https://star-history.com/#AIDC-AI/Pixelle-MCP&Date)
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/aidc-ai-pixelle-mcp).
+
