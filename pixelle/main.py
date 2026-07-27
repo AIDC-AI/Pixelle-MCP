@@ -81,6 +81,7 @@ app.add_middleware(
 # Load tools modules manually (avoid loading residual files from old installations)
 from pixelle.tools import i_crop
 from pixelle.tools import workflow_manager_tool
+from pixelle.tools import workflow_builder_tool
 
 # Register files router
 app.include_router(files_router, prefix="/files")
