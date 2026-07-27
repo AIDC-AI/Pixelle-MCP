@@ -20,12 +20,52 @@ from pixelle.utils.runninghub_util import is_runninghub_workflow, fetch_runningh
 CUSTOM_WORKFLOW_DIR = get_data_path("custom_workflows")
 os.makedirs(CUSTOM_WORKFLOW_DIR, exist_ok=True)
 
+# Sidecar manifest mapping tool_name -> description. Tool descriptions live here
+# (instead of an injected ComfyUI "MCP" node) so they persist across restarts
+# without depending on a custom node class_type existing on the user's ComfyUI
+# (ComfyUI validates every node's class_type at queue time).
+DESCRIPTIONS_FILE = get_data_path("workflow_descriptions.json")
+
 class WorkflowManager:
     """Workflow manager, support dynamic loading and hot update"""
     
     def __init__(self, workflows_dir: str = CUSTOM_WORKFLOW_DIR):
         self.workflows_dir = Path(workflows_dir)
         self.loaded_workflows = {}
+
+    # ---- description sidecar ----
+    def _read_descriptions(self) -> Dict[str, str]:
+        """Read the description sidecar manifest (name -> description)."""
+        try:
+            if os.path.exists(DESCRIPTIONS_FILE):
+                with open(DESCRIPTIONS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return data if isinstance(data, dict) else {}
+        except Exception as e:
+            logger.warning(f"Failed to read descriptions sidecar: {e}")
+        return {}
+
+    def _write_description(self, name: str, description: str) -> None:
+        """Persist a tool description to the sidecar manifest."""
+        try:
+            data = self._read_descriptions()
+            data[name] = description
+            os.makedirs(os.path.dirname(DESCRIPTIONS_FILE), exist_ok=True)
+            with open(DESCRIPTIONS_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to write description sidecar for {name}: {e}")
+
+    def _remove_description(self, name: str) -> None:
+        """Remove a tool description from the sidecar manifest."""
+        try:
+            data = self._read_descriptions()
+            if name in data:
+                del data[name]
+                with open(DESCRIPTIONS_FILE, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning(f"Failed to remove description sidecar for {name}: {e}")
 
     
     def parse_workflow_metadata(self, workflow_path: Path, tool_name: str = None) -> Optional[WorkflowMetadata]:
@@ -156,18 +196,22 @@ class WorkflowManager:
             logger.warning(f"Failed to save workflow file: {e}")
         
 
-    def load_workflow(self, workflow_path: Path | str, tool_name: str = None) -> Dict:
+    def load_workflow(self, workflow_path: Path | str, tool_name: str = None, description: Optional[str] = None) -> Dict:
         """Load single workflow
-        
+
         Args:
             workflow_path: Workflow file path
             tool_name: Tool name, priority higher than workflow file name
+            description: Optional tool description override; persisted to the
+                descriptions sidecar so it survives reloads/restarts. When not
+                provided, falls back to an MCP node in the workflow, then the
+                sidecar entry, then None.
             save_workflow_if_not_exists: Whether to save workflow file to workflow directory (if target file does not exist)
         """
         try:
             if isinstance(workflow_path, str):
                 workflow_path = Path(workflow_path)
-            
+
             # Check if file exists
             if not workflow_path.exists():
                 logger.error(f"Workflow file does not exist: {workflow_path}")
@@ -175,7 +219,7 @@ class WorkflowManager:
                     "success": False,
                     "error": f"Workflow file does not exist: {workflow_path}"
                 }
-            
+
             # Use new parser to parse workflow metadata
             metadata = self.parse_workflow_metadata(workflow_path, tool_name)
             if not metadata:
@@ -186,6 +230,16 @@ class WorkflowManager:
                 }
 
             title = metadata.title
+
+            # Resolve description: explicit override > MCP node (already in
+            # metadata) > sidecar fallback. Persist overrides to the sidecar.
+            if description is not None:
+                metadata.description = description
+                self._write_description(title, description)
+            elif metadata.description is None:
+                sidecar = self._read_descriptions()
+                if title in sidecar:
+                    metadata.description = sidecar[title]
             
             
             # Verify title format
@@ -250,12 +304,15 @@ class WorkflowManager:
         try:
             # Remove from MCP server
             mcp.remove_tool(workflow_name)
-            
+
             # Delete workflow file
             workflow_path = os.path.join(CUSTOM_WORKFLOW_DIR, f"{workflow_name}.json")
             if os.path.exists(workflow_path):
                 os.remove(workflow_path)
-            
+
+            # Remove description sidecar entry
+            self._remove_description(workflow_name)
+
             # Delete from record
             del self.loaded_workflows[workflow_name]
             
